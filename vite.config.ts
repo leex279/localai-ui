@@ -25,7 +25,8 @@ export default defineConfig({
       allow: [
         'src',
         'input',
-        '.env'
+        '.env',
+        '/'  // Allow root access for Docker volume mounts
       ]
     }
   },

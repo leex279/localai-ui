@@ -7,7 +7,7 @@ services:
       - "3000:3000"  # Frontend
       - "3001:3001"  # Backend API
     volumes:
-      - ./input:/app/input:ro  # Mount input files as read-only
+      - ./input:/app/input  # Remove :ro to allow file access
       - ./output:/app/output   # Mount output directory for generated files
     environment:
       - VITE_API_URL=http://localhost:3001
