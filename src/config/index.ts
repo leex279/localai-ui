@@ -8,9 +8,9 @@ export interface Config {
 }
 
 export const defaultConfig: Config = {
-  referenceComposeFile: 'input/docker-compose.yml',
-  referenceEnvFile: 'input/.env',
-  outputPath: 'output'
+  referenceComposeFile: '/app/input/docker-compose.yml',
+  referenceEnvFile: '/app/input/.env',
+  outputPath: '/app/output'
 };
 
 export async function loadConfig(): Promise<Config> {
@@ -26,6 +26,7 @@ export async function loadConfig(): Promise<Config> {
 
 export async function loadServicesFromReference(path: string): Promise<ServiceDefinition[]> {
   try {
+    // Use fetch with absolute path
     const response = await fetch(path);
     
     if (!response.ok) {

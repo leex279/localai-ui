@@ -1,11 +1,23 @@
 import express from 'express';
-import { writeFile } from 'node:fs/promises';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import cors from 'cors';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve files from input directory
+app.get('/app/input/*', async (req, res) => {
+  try {
+    const filePath = req.path.replace('/app/input/', '/app/input/');
+    const content = await readFile(filePath, 'utf8');
+    res.send(content);
+  } catch (error) {
+    console.error('Error reading file:', error);
+    res.status(500).json({ error: 'Failed to read file' });
+  }
+});
 
 app.post('/api/save-compose', async (req, res) => {
   try {
