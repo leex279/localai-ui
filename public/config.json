@@ -1,0 +1,5 @@
+{
+  "referenceComposeFile": "input/docker-compose.yml",
+  "referenceEnvFile": "input/.env",
+  "outputPath": "output"
+}
