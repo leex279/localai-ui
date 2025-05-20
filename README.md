@@ -49,7 +49,7 @@ The Docker Compose Configurator is a web-based tool for easily creating and cust
 
 4. Start the application:
    ```bash
-   docker-compose up
+   docker compose up --build
    ```
 
 5. Access the web interface at http://localhost:3000
