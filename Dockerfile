@@ -7,9 +7,9 @@ COPY package*.json ./
 COPY backend/package*.json ./backend/
 
 # Install dependencies with clean environment
-RUN npm ci --production=false && \
+RUN npm install && \
     cd backend && \
-    npm ci --production=false
+    npm install
 
 # Copy source files
 COPY . .
