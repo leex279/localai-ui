@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { validateComposeFile } from '../utils/composeFileGenerator';
+import { SaveIcon } from 'lucide-react';
 
 interface ComposeFilePreviewProps {
   yamlContent: string;
@@ -23,6 +24,27 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
     );
   };
 
+  const handleSaveToFile = async () => {
+    try {
+      const response = await fetch('/api/save-compose', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: yamlContent,
+          path: 'output/docker-compose-custom.yml'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save compose file');
+      }
+    } catch (error) {
+      console.error('Error saving compose file:', error);
+    }
+  };
+
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
       <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4">
@@ -44,6 +66,18 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
             }`}
           >
             Download
+          </button>
+          <button
+            onClick={handleSaveToFile}
+            disabled={!validation.valid}
+            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
+              validation.valid
+                ? 'bg-green-600 hover:bg-green-700'
+                : 'bg-gray-400 cursor-not-allowed'
+            }`}
+          >
+            <SaveIcon className="w-4 h-4" />
+            Save to Disk
           </button>
         </div>
       </div>
