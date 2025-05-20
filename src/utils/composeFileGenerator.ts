@@ -43,17 +43,15 @@ function cleanUnusedResources(compose: any, selectedServices: string[]) {
     });
   }
 
-  // Remove unused volumes
+  // Keep only used volumes but preserve their original definitions
   if (compose.volumes) {
-    Object.keys(compose.volumes).forEach(vol => {
-      if (!usedVolumes.has(vol)) {
-        delete compose.volumes[vol];
+    const newVolumes: Record<string, any> = {};
+    for (const vol of usedVolumes) {
+      if (compose.volumes[vol] !== undefined) {
+        newVolumes[vol] = compose.volumes[vol];
       }
-    });
-    // Remove volumes section if empty
-    if (Object.keys(compose.volumes).length === 0) {
-      delete compose.volumes;
     }
+    compose.volumes = Object.keys(newVolumes).length > 0 ? newVolumes : undefined;
   }
 
   // Remove unused networks
@@ -63,7 +61,6 @@ function cleanUnusedResources(compose: any, selectedServices: string[]) {
         delete compose.networks[net];
       }
     });
-    // Remove networks section if empty
     if (Object.keys(compose.networks).length === 0) {
       delete compose.networks;
     }
@@ -86,7 +83,7 @@ export function generateComposeFile(
 ): string {
   const selectedServices = services.filter(service => state[service.id]?.selected);
   
-  // If no services are selected, return the original compose file
+  // If no services are selected, return empty string
   if (selectedServices.length === 0) {
     return '';
   }
