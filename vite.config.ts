@@ -33,5 +33,6 @@ export default defineConfig({
   preview: {
     port: 3000,
     host: true
-  }
+  },
+  cacheDir: '/tmp/vite-cache' // Store Vite cache in /tmp where we have write permissions
 });

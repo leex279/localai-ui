@@ -19,11 +19,15 @@ RUN npm run build
 
 # Create directories with proper permissions
 RUN mkdir -p /app/output && \
-    chmod -R 777 /app/output
+    chown -R node:node /app && \
+    chmod -R 775 /app/output
 
 # Expose ports
 EXPOSE 3000
 EXPOSE 3001
+
+# Switch to node user for better security
+USER node
 
 # Start both frontend and backend
 CMD node backend/server.js & npm run preview

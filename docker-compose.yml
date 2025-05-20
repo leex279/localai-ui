@@ -13,4 +13,3 @@ services:
       - VITE_API_URL=http://localhost:3001
       - PORT=3001
     restart: unless-stopped
-    user: "node"  # Run as node user to avoid permission issues
