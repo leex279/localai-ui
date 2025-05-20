@@ -32,12 +32,6 @@ function App() {
         console.log('[DEBUG] App starting, window.location:', window.location.toString());
         
         const loadedConfig = await loadConfig();
-        
-        // Fix API URL for Docker if needed
-        if (window.location.hostname !== 'localhost') {
-          loadedConfig.apiBaseUrl = loadedConfig.apiBaseUrl.replace('localhost', window.location.hostname);
-        }
-        
         setConfig(loadedConfig);
         console.log('[DEBUG] Config loaded with API URL:', loadedConfig.apiBaseUrl);
         

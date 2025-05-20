@@ -56,15 +56,14 @@ export async function loadServicesFromReference(path: string): Promise<ServiceDe
   try {
     console.log(`[DEBUG] Loading docker-compose from: ${path}`);
     
-    // Adjust URL for Docker if needed
-    const apiUrl = window.location.hostname === 'localhost' 
-      ? path 
-      : path.replace('localhost', window.location.hostname);
+    // Get the API base URL from config
+    const config = await loadConfig();
     
+    // Construct the full API URL
+    const apiUrl = `${config.apiBaseUrl}${path}`;
     console.log(`[DEBUG] Actual fetch URL: ${apiUrl}`);
     
     // First try to check server status to see if files are accessible
-    const config = await loadConfig();
     const statusUrl = `${config.apiBaseUrl}/api/status`;
     console.log(`[DEBUG] Checking server status at: ${statusUrl}`);
     

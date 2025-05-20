@@ -34,11 +34,7 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
       console.log(`[DEBUG] Saving compose file, length: ${yamlContent.length} bytes`);
       
       const config = await loadConfig();
-      
-      // Adjust API URL for Docker if needed
-      const apiUrl = window.location.hostname === 'localhost'
-        ? `${config.apiBaseUrl}/api/save-compose`
-        : `${config.apiBaseUrl.replace('localhost', window.location.hostname)}/api/save-compose`;
+      const apiUrl = `${config.apiBaseUrl}/api/save-compose`;
       
       console.log(`[DEBUG] Using API URL for saving compose: ${apiUrl}`);
       

@@ -65,7 +65,7 @@ app.get('/api/list-dir/:path(*)', async (req, res) => {
 app.get('/api/files/input/*', async (req, res) => {
   try {
     const requestPath = req.path;
-    const filePath = req.path.replace('/api/files/input/', '/app/input/');
+    const filePath = requestPath.replace('/api/files/input/', '/app/input/');
     console.log(`[DEBUG] Request path: ${requestPath}`);
     console.log(`[DEBUG] Reading file: ${filePath}`);
     
