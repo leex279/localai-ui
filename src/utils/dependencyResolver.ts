@@ -80,16 +80,28 @@ export function updateServiceState(
   return newState;
 }
 
-// Initialize service state
+// Initialize service state with all services selected
 export function initializeServiceState(services: ServiceDefinition[]): ServicesState {
   const state: ServicesState = {};
   
+  // First, initialize all services as selected
   for (const service of services) {
     state[service.id] = {
-      selected: service.required,
+      selected: true, // Set all services as selected initially
       required: service.required,
       dependencyOf: []
     };
+  }
+  
+  // Then, process dependencies
+  for (const service of services) {
+    if (service.dependencies.length > 0) {
+      for (const depId of service.dependencies) {
+        if (state[depId]) {
+          state[depId].dependencyOf = [...(state[depId].dependencyOf || []), service.id];
+        }
+      }
+    }
   }
   
   return state;

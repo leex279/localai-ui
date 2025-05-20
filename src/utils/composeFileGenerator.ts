@@ -85,10 +85,15 @@ export function generateComposeFile(
   state: ServicesState
 ): string {
   const selectedServices = services.filter(service => state[service.id]?.selected);
+  
+  // If no services are selected, return the original compose file
+  if (selectedServices.length === 0) {
+    return '';
+  }
+  
   const selectedServiceIds = selectedServices.map(s => s.id);
   
   // Get the original compose structure from the first service
-  // (they all have the same originalCompose)
   const originalCompose = selectedServices[0]?.originalCompose || {
     version: '3',
     services: {}
