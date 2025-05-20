@@ -28,5 +28,9 @@ export default defineConfig({
         '.env'
       ]
     }
+  },
+  preview: {
+    port: 3000,
+    host: true
   }
 });
