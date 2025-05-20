@@ -9,6 +9,7 @@ interface ComposeFilePreviewProps {
 
 export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeFilePreviewProps) {
   const [copySuccess, setCopySuccess] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   
   const validation = validateComposeFile(yamlContent);
   
@@ -24,24 +25,27 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
     );
   };
 
-  const handleSaveToFile = () => {
+  const handleSaveToFile = async () => {
     try {
-      // Create a Blob containing the YAML content
-      const blob = new Blob([yamlContent], { type: 'text/yaml' });
-      const url = window.URL.createObjectURL(blob);
-      
-      // Create a temporary link element
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'docker-compose-custom.yml';
-      
-      // Append to document, click, and cleanup
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      setSaveStatus('saving');
+      const response = await fetch('http://localhost:3001/api/save-compose', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: yamlContent }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save compose file');
+      }
+
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving compose file:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
 
@@ -69,15 +73,17 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
           </button>
           <button
             onClick={handleSaveToFile}
-            disabled={!validation.valid}
+            disabled={!validation.valid || saveStatus === 'saving'}
             className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
-              validation.valid
+              validation.valid && saveStatus !== 'saving'
                 ? 'bg-green-600 hover:bg-green-700'
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
           >
             <SaveIcon className="w-4 h-4" />
-            Save to Disk
+            {saveStatus === 'saving' ? 'Saving...' : 
+             saveStatus === 'success' ? 'Saved!' :
+             saveStatus === 'error' ? 'Error!' : 'Save to Disk'}
           </button>
         </div>
       </div>
