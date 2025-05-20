@@ -1,7 +1,9 @@
 import { EnvVariable } from '../types';
+import { loadConfig } from '../config';
 
 export async function loadEnvFile(path: string): Promise<EnvVariable[]> {
   try {
+    console.log(`Loading env file from: ${path}`);
     const response = await fetch(path);
     
     if (!response.ok) {
@@ -9,6 +11,7 @@ export async function loadEnvFile(path: string): Promise<EnvVariable[]> {
     }
     
     const content = await response.text();
+    console.log(`Loaded env file content length: ${content.length} bytes`);
     return parseEnvFile(content);
   } catch (error) {
     console.error('Failed to load .env file:', error);
@@ -120,7 +123,8 @@ export async function saveEnvFile(variables: EnvVariable[], outputPath: string):
   const content = generateEnvFile(variables);
   
   try {
-    const response = await fetch('/api/save-env', {
+    const config = await loadConfig();
+    const response = await fetch(`${config.apiBaseUrl}/api/save-env`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

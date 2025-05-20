@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { validateComposeFile } from '../utils/composeFileGenerator';
-import { SaveIcon } from 'lucide-react';
+import { SaveIcon, Download, ClipboardCopy, Check, XCircle, AlertTriangle } from 'lucide-react';
+import { loadConfig } from '../config';
 
 interface ComposeFilePreviewProps {
   yamlContent: string;
@@ -28,7 +29,8 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
   const handleSaveToFile = async () => {
     try {
       setSaveStatus('saving');
-      const response = await fetch('http://localhost:3001/api/save-compose', {
+      const config = await loadConfig();
+      const response = await fetch(`${config.apiBaseUrl}/api/save-compose`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +39,8 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save compose file');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save compose file');
       }
 
       setSaveStatus('success');
@@ -56,31 +59,41 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
         <div className="flex gap-2">
           <button
             onClick={copyToClipboard}
-            className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
+            {copySuccess ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
             {copySuccess ? 'Copied!' : 'Copy'}
           </button>
           <button
             onClick={onDownload}
             disabled={!validation.valid}
-            className={`px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
               validation.valid
                 ? 'bg-blue-600 hover:bg-blue-700'
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
           >
+            <Download className="w-4 h-4" />
             Download
           </button>
           <button
             onClick={handleSaveToFile}
             disabled={!validation.valid || saveStatus === 'saving'}
-            className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
+            className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
               validation.valid && saveStatus !== 'saving'
                 ? 'bg-green-600 hover:bg-green-700'
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
           >
-            <SaveIcon className="w-4 h-4" />
+            {saveStatus === 'saving' ? (
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+            ) : saveStatus === 'success' ? (
+              <Check className="w-4 h-4" />
+            ) : saveStatus === 'error' ? (
+              <XCircle className="w-4 h-4" />
+            ) : (
+              <SaveIcon className="w-4 h-4" />
+            )}
             {saveStatus === 'saving' ? 'Saving...' : 
              saveStatus === 'success' ? 'Saved!' :
              saveStatus === 'error' ? 'Error!' : 'Save to Disk'}
@@ -90,8 +103,11 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
       
       {validation.errors.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 p-3 text-red-600 dark:text-red-400 text-sm">
-          <p className="font-semibold">Invalid YAML:</p>
-          <ul className="list-disc list-inside">
+          <p className="font-semibold flex items-center gap-1">
+            <AlertTriangle className="w-4 h-4" />
+            Invalid YAML:
+          </p>
+          <ul className="list-disc list-inside ml-2 mt-1">
             {validation.errors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}

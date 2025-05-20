@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy package files first for better caching
 COPY package*.json ./
-COPY backend/package*.json ./backend/
+COPY backend/*.json ./backend/
 
 # Install dependencies with clean environment
 RUN npm install && \
@@ -19,14 +19,11 @@ RUN npm run build
 
 # Create directories with proper permissions
 RUN mkdir -p /app/output && \
-    chown -R node:node /app
-
-# Switch to node user (built into node image)
-USER node
+    chmod -R 777 /app/output
 
 # Expose ports
 EXPOSE 3000
 EXPOSE 3001
 
 # Start both frontend and backend
-CMD cd backend && node server.js & cd /app && npm run preview
+CMD node backend/server.js & npm run preview

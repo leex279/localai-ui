@@ -28,18 +28,26 @@ function App() {
         setLoading(true);
         const loadedConfig = await loadConfig();
         setConfig(loadedConfig);
+        console.log('Config loaded:', loadedConfig);
         
         // Load services
         const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);
+        console.log(`Loaded ${loadedServices.length} services`);
         setServices(loadedServices);
         setServiceState(initializeServiceState(loadedServices));
         
         // Load environment variables from the reference file
-        const loadedEnvVars = await loadEnvFile(loadedConfig.referenceEnvFile);
-        setEnvVariables(loadedEnvVars);
+        try {
+          const loadedEnvVars = await loadEnvFile(loadedConfig.referenceEnvFile);
+          setEnvVariables(loadedEnvVars);
+          console.log(`Loaded ${loadedEnvVars.length} environment variables`);
+        } catch (envError) {
+          console.error('Failed to load env file, using default empty array:', envError);
+          setEnvVariables([]);
+        }
       } catch (err) {
-        setError('Failed to load configuration');
-        console.error(err);
+        console.error('Failed to load configuration:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load configuration');
       } finally {
         setLoading(false);
       }
@@ -74,9 +82,10 @@ function App() {
   };
 
   // Handle saving env variables
-  const handleSaveEnv = async () => {
+  const handleSaveEnv = async (variables: EnvVariable[]) => {
     try {
-      await saveEnvFile(envVariables, config.outputPath);
+      setEnvVariables(variables);
+      await saveEnvFile(variables, config.outputPath);
     } catch (error) {
       console.error('Failed to save env file:', error);
     }
@@ -89,7 +98,10 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Loading configuration...</div>
+        <div className="text-gray-600 dark:text-gray-400 flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+          Loading configuration...
+        </div>
       </div>
     );
   }
@@ -97,7 +109,15 @@ function App() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-red-600 dark:text-red-400">{error}</div>
+        <div className="text-red-600 dark:text-red-400 max-w-md text-center">
+          <h2 className="text-xl font-bold mb-4">Error Loading Configuration</h2>
+          <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-lg">
+            {error}
+          </div>
+          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            Please check that the Docker container has proper access to the mounted files.
+          </div>
+        </div>
       </div>
     );
   }
@@ -162,8 +182,6 @@ function App() {
           </div>
         ) : (
           <EnvConfigurator
-            variables={envVariables}
-            onChange={setEnvVariables}
             onSave={handleSaveEnv}
           />
         )}

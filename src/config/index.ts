@@ -5,18 +5,21 @@ export interface Config {
   referenceComposeFile: string;
   referenceEnvFile: string;
   outputPath: string;
+  apiBaseUrl: string;
 }
 
 export const defaultConfig: Config = {
-  referenceComposeFile: '/app/input/docker-compose.yml',
-  referenceEnvFile: '/app/input/.env',
-  outputPath: '/app/output'
+  referenceComposeFile: '/api/files/input/docker-compose.yml',
+  referenceEnvFile: '/api/files/input/env',
+  outputPath: '/app/output',
+  apiBaseUrl: 'http://localhost:3001'
 };
 
 export async function loadConfig(): Promise<Config> {
   try {
     const response = await fetch('/config.json');
     const config = await response.json();
+    console.log('Loaded config:', config);
     return { ...defaultConfig, ...config };
   } catch (error) {
     console.warn('Failed to load config.json, using default configuration:', error);
@@ -26,54 +29,74 @@ export async function loadConfig(): Promise<Config> {
 
 export async function loadServicesFromReference(path: string): Promise<ServiceDefinition[]> {
   try {
-    // Use fetch with absolute path
+    console.log(`Loading docker-compose from: ${path}`);
+    // Use fetch with the API path
     const response = await fetch(path);
     
     if (!response.ok) {
-      throw new Error(`Failed to load docker-compose.yml: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to load docker-compose.yml (${response.status}): ${errorText}`);
     }
     
     const content = await response.text();
-    const compose = yaml.load(content) as any;
+    console.log(`Loaded docker-compose content length: ${content.length} bytes`);
+    
+    // Validate the content is actually YAML
+    if (!content || content.trim() === '') {
+      throw new Error('Empty docker-compose file content');
+    }
+    
+    try {
+      const compose = yaml.load(content) as any;
+      console.log('Parsed docker-compose.yml:', compose ? 'success' : 'failed');
 
-    // Store the original compose configuration for later use
-    const originalCompose = JSON.parse(JSON.stringify(compose));
-
-    // Extract services from the compose file
-    const services = Object.entries(compose.services || {}).map(([id, config]: [string, any]) => {
-      // Handle service references (e.g., <<: *service-n8n)
-      let serviceConfig = { ...config };
-      if (config['<<']) {
-        const refName = config['<<'].substring(1); // Remove * from reference
-        const refConfig = compose[refName] || {};
-        serviceConfig = { ...refConfig, ...config };
-        delete serviceConfig['<<'];
+      if (!compose) {
+        throw new Error('Failed to parse docker-compose.yml: empty result');
       }
 
-      // Get dependencies from depends_on
-      const dependencies = serviceConfig.depends_on ? 
-        (Array.isArray(serviceConfig.depends_on) ? 
-          serviceConfig.depends_on : 
-          Object.keys(serviceConfig.depends_on)
-        ) : [];
+      // Store the original compose configuration for later use
+      const originalCompose = JSON.parse(JSON.stringify(compose));
 
-      return {
-        id,
-        name: serviceConfig.container_name || id,
-        description: serviceConfig.labels?.description || `${id} service`,
-        category: determineCategory(id, serviceConfig),
-        dependencies,
-        required: serviceConfig.labels?.required === 'true',
-        image: serviceConfig.image,
-        ports: serviceConfig.ports,
-        environment: serviceConfig.environment,
-        volumes: serviceConfig.volumes,
-        originalConfig: serviceConfig,
-        originalCompose // Store the full compose file for reference
-      };
-    });
+      // Extract services from the compose file
+      const services = Object.entries(compose.services || {}).map(([id, config]: [string, any]) => {
+        // Handle service references (e.g., <<: *service-n8n)
+        let serviceConfig = { ...config };
+        if (config['<<']) {
+          const refName = config['<<'].substring(1); // Remove * from reference
+          const refConfig = compose[`x-${refName}`] || {};
+          serviceConfig = { ...refConfig, ...config };
+          delete serviceConfig['<<'];
+        }
 
-    return services;
+        // Get dependencies from depends_on
+        const dependencies = serviceConfig.depends_on ? 
+          (Array.isArray(serviceConfig.depends_on) ? 
+            serviceConfig.depends_on : 
+            Object.keys(serviceConfig.depends_on)
+          ) : [];
+
+        return {
+          id,
+          name: serviceConfig.container_name || id,
+          description: serviceConfig.labels?.description || `${id} service`,
+          category: determineCategory(id, serviceConfig),
+          dependencies,
+          required: serviceConfig.labels?.required === 'true',
+          image: serviceConfig.image,
+          ports: serviceConfig.ports,
+          environment: serviceConfig.environment,
+          volumes: serviceConfig.volumes,
+          originalConfig: serviceConfig,
+          originalCompose
+        };
+      });
+
+      return services;
+    } catch (parseError) {
+      console.error('YAML parsing error:', parseError);
+      console.error('Content preview:', content.substring(0, 200));
+      throw parseError;
+    }
   } catch (error) {
     console.error('Failed to load reference docker-compose.yml:', error);
     throw error;
