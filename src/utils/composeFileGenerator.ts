@@ -31,10 +31,13 @@ function cleanUnusedResources(compose: any, selectedServices: string[]) {
       }
     }
 
-    // Check for x-ref usage
+    // Check for x-ref usage in the entire service config
     const configStr = JSON.stringify(config);
     Object.keys(compose).forEach(key => {
-      if (key.startsWith('x-') && configStr.includes(`*${key.substring(2)}`)) {
+      if (key.startsWith('x-') && (
+        configStr.includes(`*${key.substring(2)}`) || 
+        configStr.includes(`<<: *${key.substring(2)}`)
+      )) {
         usedXRefs.add(key);
       }
     });
@@ -84,32 +87,21 @@ export function generateComposeFile(
   const selectedServices = services.filter(service => state[service.id]?.selected);
   const selectedServiceIds = selectedServices.map(s => s.id);
   
-  // Start with a base compose structure
-  const composeFile: any = {
+  // Get the original compose structure from the first service
+  // (they all have the same originalCompose)
+  const originalCompose = selectedServices[0]?.originalCompose || {
     version: '3',
     services: {}
   };
   
-  // Add all selected services with their original configurations
+  // Create a new compose file starting with the original structure
+  const composeFile = JSON.parse(JSON.stringify(originalCompose));
+  
+  // Clear services and only add selected ones
+  composeFile.services = {};
   for (const service of selectedServices) {
-    composeFile.services[service.id] = JSON.parse(JSON.stringify(service.originalConfig));
+    composeFile.services[service.id] = service.originalConfig;
   }
-
-  // Add all volumes from original config
-  if (services[0]?.originalConfig?.volumes) {
-    composeFile.volumes = JSON.parse(JSON.stringify(services[0].originalConfig.volumes));
-  }
-
-  // Add all x-refs from original config
-  services.forEach(service => {
-    if (service.originalConfig) {
-      Object.entries(service.originalConfig).forEach(([key, value]) => {
-        if (key.startsWith('x-')) {
-          composeFile[key] = JSON.parse(JSON.stringify(value));
-        }
-      });
-    }
-  });
 
   // Clean up unused resources
   const cleanedCompose = cleanUnusedResources(composeFile, selectedServiceIds);
