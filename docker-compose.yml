@@ -13,5 +13,3 @@ services:
       - VITE_API_URL=http://localhost:3001
       - PORT=3001
     restart: unless-stopped
-    # Add proper user mapping for volumes
-    user: "${UID:-1000}:${GID:-1000}"

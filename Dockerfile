@@ -17,17 +17,16 @@ COPY . .
 # Build frontend
 RUN npm run build
 
+# Create directories with proper permissions
+RUN mkdir -p /app/output && \
+    chown -R node:node /app
+
+# Switch to node user (built into node image)
+USER node
+
 # Expose ports
 EXPOSE 3000
 EXPOSE 3001
-
-# Create a non-root user
-RUN addgroup -S appgroup && \
-    adduser -S appuser -G appgroup && \
-    chown -R appuser:appgroup /app
-
-# Switch to non-root user
-USER appuser
 
 # Start both frontend and backend
 CMD cd backend && node server.js & cd /app && npm run preview
