@@ -30,7 +30,15 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
     try {
       setSaveStatus('saving');
       const config = await loadConfig();
-      const response = await fetch(`${config.apiBaseUrl}/api/save-compose`, {
+      
+      // Adjust API URL for Docker if needed
+      const apiUrl = window.location.hostname === 'localhost'
+        ? `${config.apiBaseUrl}/api/save-compose`
+        : `${config.apiBaseUrl.replace('localhost', window.location.hostname)}/api/save-compose`;
+      
+      console.log(`Using API URL for saving compose: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

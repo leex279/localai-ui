@@ -4,7 +4,13 @@ import { loadConfig } from '../config';
 export async function loadEnvFile(path: string): Promise<EnvVariable[]> {
   try {
     console.log(`Loading env file from: ${path}`);
-    const response = await fetch(path);
+    // Adjust URL for Docker if needed
+    const apiUrl = window.location.hostname === 'localhost' 
+      ? path 
+      : path.replace('localhost', window.location.hostname);
+    
+    console.log(`Actual env file fetch URL: ${apiUrl}`);
+    const response = await fetch(apiUrl);
     
     if (!response.ok) {
       throw new Error(`Failed to load .env file: ${response.statusText}`);
@@ -124,7 +130,14 @@ export async function saveEnvFile(variables: EnvVariable[], outputPath: string):
   
   try {
     const config = await loadConfig();
-    const response = await fetch(`${config.apiBaseUrl}/api/save-env`, {
+    // Adjust API URL for Docker if needed
+    const apiUrl = window.location.hostname === 'localhost'
+      ? `${config.apiBaseUrl}/api/save-env`
+      : `${config.apiBaseUrl.replace('localhost', window.location.hostname)}/api/save-env`;
+    
+    console.log(`Using API URL for saving env: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

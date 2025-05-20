@@ -27,8 +27,14 @@ function App() {
       try {
         setLoading(true);
         const loadedConfig = await loadConfig();
+        
+        // Fix API URL for Docker if needed
+        if (window.location.hostname !== 'localhost') {
+          loadedConfig.apiBaseUrl = loadedConfig.apiBaseUrl.replace('localhost', window.location.hostname);
+        }
+        
         setConfig(loadedConfig);
-        console.log('Config loaded:', loadedConfig);
+        console.log('Config loaded with API URL:', loadedConfig.apiBaseUrl);
         
         // Load services
         const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);

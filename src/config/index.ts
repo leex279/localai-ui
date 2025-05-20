@@ -31,7 +31,12 @@ export async function loadServicesFromReference(path: string): Promise<ServiceDe
   try {
     console.log(`Loading docker-compose from: ${path}`);
     // Use fetch with the API path
-    const response = await fetch(path);
+    const apiUrl = window.location.hostname === 'localhost' 
+      ? path 
+      : path.replace('localhost', window.location.hostname);
+    
+    console.log(`Actual fetch URL: ${apiUrl}`);
+    const response = await fetch(apiUrl);
     
     if (!response.ok) {
       const errorText = await response.text();

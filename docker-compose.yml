@@ -7,7 +7,7 @@ services:
       - "3000:3000"  # Frontend
       - "3001:3001"  # Backend API
     volumes:
-      - ./input:/app/input
+      - ./input:/app/input:ro
       - ./output:/app/output
     environment:
       - VITE_API_URL=http://localhost:3001
