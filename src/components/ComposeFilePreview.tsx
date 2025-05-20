@@ -11,6 +11,7 @@ interface ComposeFilePreviewProps {
 export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeFilePreviewProps) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   const validation = validateComposeFile(yamlContent);
   
@@ -21,7 +22,7 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
         setTimeout(() => setCopySuccess(false), 2000);
       },
       () => {
-        console.error('Failed to copy');
+        console.error('[ERROR] Failed to copy');
       }
     );
   };
@@ -29,6 +30,9 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
   const handleSaveToFile = async () => {
     try {
       setSaveStatus('saving');
+      setSaveError(null);
+      console.log(`[DEBUG] Saving compose file, length: ${yamlContent.length} bytes`);
+      
       const config = await loadConfig();
       
       // Adjust API URL for Docker if needed
@@ -36,7 +40,7 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
         ? `${config.apiBaseUrl}/api/save-compose`
         : `${config.apiBaseUrl.replace('localhost', window.location.hostname)}/api/save-compose`;
       
-      console.log(`Using API URL for saving compose: ${apiUrl}`);
+      console.log(`[DEBUG] Using API URL for saving compose: ${apiUrl}`);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -48,14 +52,19 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error(`[ERROR] Failed to save compose file (${response.status}):`, errorData);
         throw new Error(errorData.message || 'Failed to save compose file');
       }
 
+      const result = await response.json();
+      console.log('[DEBUG] Save compose response:', result);
+      
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
-      console.error('Error saving compose file:', error);
+      console.error('[ERROR] Error saving compose file:', error);
       setSaveStatus('error');
+      setSaveError(error instanceof Error ? error.message : 'Unknown error');
       setTimeout(() => setSaveStatus('idle'), 3000);
     }
   };
@@ -108,6 +117,16 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
           </button>
         </div>
       </div>
+      
+      {saveStatus === 'error' && saveError && (
+        <div className="bg-red-50 dark:bg-red-900/20 p-3 text-red-600 dark:text-red-400 text-sm">
+          <p className="font-semibold flex items-center gap-1">
+            <XCircle className="w-4 h-4" />
+            Error saving file:
+          </p>
+          <p className="ml-5">{saveError}</p>
+        </div>
+      )}
       
       {validation.errors.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 p-3 text-red-600 dark:text-red-400 text-sm">

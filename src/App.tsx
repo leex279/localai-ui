@@ -21,11 +21,16 @@ function App() {
   const [activeTab, setActiveTab] = useState<'compose' | 'env'>('compose');
   const [envVariables, setEnvVariables] = useState<EnvVariable[]>([]);
   const [config, setConfig] = useState<any>(null);
+  const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
   
   useEffect(() => {
     async function loadInitialData() {
       try {
         setLoading(true);
+        setLoadingStatus('Loading configuration...');
+        
+        console.log('[DEBUG] App starting, window.location:', window.location.toString());
+        
         const loadedConfig = await loadConfig();
         
         // Fix API URL for Docker if needed
@@ -34,25 +39,55 @@ function App() {
         }
         
         setConfig(loadedConfig);
-        console.log('Config loaded with API URL:', loadedConfig.apiBaseUrl);
+        console.log('[DEBUG] Config loaded with API URL:', loadedConfig.apiBaseUrl);
+        
+        // Check server status
+        setLoadingStatus('Checking server connectivity...');
+        try {
+          const statusResponse = await fetch(`${loadedConfig.apiBaseUrl}/api/status`);
+          if (statusResponse.ok) {
+            const status = await statusResponse.json();
+            console.log('[DEBUG] Server status:', status);
+            
+            if (!status.volumes.input.accessible) {
+              throw new Error('Input volume is not accessible: ' + status.volumes.input.error);
+            }
+            
+            if (!status.files.dockerCompose.exists) {
+              throw new Error('docker-compose.yml not found: ' + status.files.dockerCompose.error);
+            }
+          } else {
+            console.error('[ERROR] Server status check failed:', statusResponse.statusText);
+          }
+        } catch (statusError) {
+          console.error('[ERROR] Error checking server status:', statusError);
+          // Continue anyway, we'll try to load the services directly
+        }
         
         // Load services
-        const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);
-        console.log(`Loaded ${loadedServices.length} services`);
-        setServices(loadedServices);
-        setServiceState(initializeServiceState(loadedServices));
+        setLoadingStatus('Loading services...');
+        try {
+          const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);
+          console.log(`[DEBUG] Loaded ${loadedServices.length} services`);
+          setServices(loadedServices);
+          setServiceState(initializeServiceState(loadedServices));
+        } catch (servicesError) {
+          console.error('[ERROR] Failed to load services:', servicesError);
+          throw new Error(`Failed to load services: ${servicesError.message}`);
+        }
         
         // Load environment variables from the reference file
+        setLoadingStatus('Loading environment variables...');
         try {
           const loadedEnvVars = await loadEnvFile(loadedConfig.referenceEnvFile);
           setEnvVariables(loadedEnvVars);
-          console.log(`Loaded ${loadedEnvVars.length} environment variables`);
+          console.log(`[DEBUG] Loaded ${loadedEnvVars.length} environment variables`);
         } catch (envError) {
-          console.error('Failed to load env file, using default empty array:', envError);
+          console.error('[ERROR] Failed to load env file, using default empty array:', envError);
           setEnvVariables([]);
         }
       } catch (err) {
-        console.error('Failed to load configuration:', err);
+        console.error('[ERROR] Failed to load configuration:', err);
         setError(err instanceof Error ? err.message : 'Failed to load configuration');
       } finally {
         setLoading(false);
@@ -93,7 +128,42 @@ function App() {
       setEnvVariables(variables);
       await saveEnvFile(variables, config.outputPath);
     } catch (error) {
-      console.error('Failed to save env file:', error);
+      console.error('[ERROR] Failed to save env file:', error);
+    }
+  };
+  
+  // Manual retry loading
+  const handleRetry = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Check if the docker-compose.yml file exists directly
+      const loadedConfig = await loadConfig();
+      console.log('[DEBUG] Retry: Checking server status...');
+      
+      const statusResponse = await fetch(`${loadedConfig.apiBaseUrl}/api/status`);
+      if (statusResponse.ok) {
+        const status = await statusResponse.json();
+        console.log('[DEBUG] Retry: Server status:', status);
+      }
+      
+      // Try to load services again
+      console.log('[DEBUG] Retry: Loading services...');
+      const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);
+      console.log(`[DEBUG] Retry: Loaded ${loadedServices.length} services`);
+      setServices(loadedServices);
+      setServiceState(initializeServiceState(loadedServices));
+      
+      // Try to load environment variables again
+      console.log('[DEBUG] Retry: Loading environment variables...');
+      const loadedEnvVars = await loadEnvFile(loadedConfig.referenceEnvFile);
+      setEnvVariables(loadedEnvVars);
+    } catch (err) {
+      console.error('[ERROR] Retry failed:', err);
+      setError(err instanceof Error ? err.message : 'Retry failed');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -106,7 +176,7 @@ function App() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-gray-600 dark:text-gray-400 flex flex-col items-center">
           <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
-          Loading configuration...
+          <div className="text-lg">{loadingStatus}</div>
         </div>
       </div>
     );
@@ -123,6 +193,12 @@ function App() {
           <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
             Please check that the Docker container has proper access to the mounted files.
           </div>
+          <button 
+            onClick={handleRetry}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          >
+            Retry Loading
+          </button>
         </div>
       </div>
     );

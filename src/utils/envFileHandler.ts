@@ -3,24 +3,27 @@ import { loadConfig } from '../config';
 
 export async function loadEnvFile(path: string): Promise<EnvVariable[]> {
   try {
-    console.log(`Loading env file from: ${path}`);
+    console.log(`[DEBUG] Loading env file from: ${path}`);
     // Adjust URL for Docker if needed
     const apiUrl = window.location.hostname === 'localhost' 
       ? path 
       : path.replace('localhost', window.location.hostname);
     
-    console.log(`Actual env file fetch URL: ${apiUrl}`);
+    console.log(`[DEBUG] Actual env file fetch URL: ${apiUrl}`);
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ERROR] Failed to load .env file (${response.status}): ${errorText}`);
       throw new Error(`Failed to load .env file: ${response.statusText}`);
     }
     
     const content = await response.text();
-    console.log(`Loaded env file content length: ${content.length} bytes`);
+    console.log(`[DEBUG] Loaded env file content length: ${content.length} bytes`);
+    console.log(`[DEBUG] First 100 chars: ${content.substring(0, 100)}...`);
     return parseEnvFile(content);
   } catch (error) {
-    console.error('Failed to load .env file:', error);
+    console.error('[ERROR] Failed to load .env file:', error);
     throw error;
   }
 }
@@ -129,13 +132,15 @@ export async function saveEnvFile(variables: EnvVariable[], outputPath: string):
   const content = generateEnvFile(variables);
   
   try {
+    console.log(`[DEBUG] Saving env file, length: ${content.length} bytes`);
+    
     const config = await loadConfig();
     // Adjust API URL for Docker if needed
     const apiUrl = window.location.hostname === 'localhost'
       ? `${config.apiBaseUrl}/api/save-env`
       : `${config.apiBaseUrl.replace('localhost', window.location.hostname)}/api/save-env`;
     
-    console.log(`Using API URL for saving env: ${apiUrl}`);
+    console.log(`[DEBUG] Using API URL for saving env: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -149,10 +154,14 @@ export async function saveEnvFile(variables: EnvVariable[], outputPath: string):
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ERROR] Failed to save .env file (${response.status}): ${errorText}`);
       throw new Error('Failed to save .env file');
     }
+    
+    console.log('[DEBUG] Env file saved successfully');
   } catch (error) {
-    console.error('Error saving .env file:', error);
+    console.error('[ERROR] Error saving .env file:', error);
     throw error;
   }
 }
