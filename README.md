@@ -36,23 +36,18 @@ The Docker Compose Configurator is a web-based tool for easily creating and cust
    cd docker-compose-configurator
    ```
 
-2. Create input and output directories:
-   ```bash
-   mkdir -p input output
-   ```
-
-3. Place your reference docker-compose.yml and .env files in the input directory:
+2. Place your reference docker-compose.yml and .env files in the input directory:
    ```bash
    cp your-docker-compose.yml input/docker-compose.yml
    cp your-env-file input/env
    ```
 
-4. Start the application:
+3. Start the application:
    ```bash
    docker compose up --build
    ```
 
-5. Access the web interface at http://localhost:3000
+4. Access the web interface at http://localhost:3000
 
 ### Usage Instructions
 
