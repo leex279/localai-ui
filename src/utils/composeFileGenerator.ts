@@ -43,15 +43,20 @@ function cleanUnusedResources(compose: any, selectedServices: string[]) {
     });
   }
 
-  // Keep only used volumes but preserve their original definitions
+  // Keep only used volumes with their original empty definitions
   if (compose.volumes) {
     const newVolumes: Record<string, any> = {};
     for (const vol of usedVolumes) {
       if (compose.volumes[vol] !== undefined) {
+        // Preserve the original volume definition (even if it's empty)
         newVolumes[vol] = compose.volumes[vol];
       }
     }
-    compose.volumes = Object.keys(newVolumes).length > 0 ? newVolumes : undefined;
+    if (Object.keys(newVolumes).length > 0) {
+      compose.volumes = newVolumes;
+    } else {
+      delete compose.volumes;
+    }
   }
 
   // Remove unused networks
@@ -93,7 +98,8 @@ export function generateComposeFile(
   // Get the original compose structure from the first service
   const originalCompose = selectedServices[0]?.originalCompose || {
     version: '3',
-    services: {}
+    services: {},
+    volumes: {}
   };
   
   // Create a new compose file starting with the original structure
