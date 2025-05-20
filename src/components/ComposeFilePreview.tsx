@@ -24,22 +24,22 @@ export default function ComposeFilePreview({ yamlContent, onDownload }: ComposeF
     );
   };
 
-  const handleSaveToFile = async () => {
+  const handleSaveToFile = () => {
     try {
-      const response = await fetch('/api/save-compose', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: yamlContent,
-          path: 'output/docker-compose-custom.yml'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save compose file');
-      }
+      // Create a Blob containing the YAML content
+      const blob = new Blob([yamlContent], { type: 'text/yaml' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'docker-compose-custom.yml';
+      
+      // Append to document, click, and cleanup
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error saving compose file:', error);
     }
