@@ -32,3 +32,7 @@ export interface EnvVariable {
 export interface EnvConfig {
   variables: EnvVariable[];
 }
+
+export interface ComposeIncludes {
+  [path: string]: boolean;
+}

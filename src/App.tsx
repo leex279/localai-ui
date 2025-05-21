@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ServiceDefinition, ServicesState, EnvVariable } from './types';
+import { ServiceDefinition, ServicesState, EnvVariable, ComposeIncludes } from './types';
 import { initializeServiceState, updateServiceState } from './utils/dependencyResolver';
-import { generateComposeFile } from './utils/composeFileGenerator';
+import { generateComposeFile, extractIncludes } from './utils/composeFileGenerator';
 import { loadConfig, loadServicesFromReference } from './config';
 import { loadEnvFile, saveEnvFile } from './utils/envFileHandler';
 import ServiceSelector from './components/ServiceSelector';
 import ComposeFilePreview from './components/ComposeFilePreview';
 import DependencyGraph from './components/DependencyGraph';
 import EnvConfigurator from './components/EnvConfigurator';
+import IncludeSelector from './components/IncludeSelector';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 
@@ -22,6 +23,7 @@ function App() {
   const [envVariables, setEnvVariables] = useState<EnvVariable[]>([]);
   const [config, setConfig] = useState<any>(null);
   const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
+  const [includes, setIncludes] = useState<ComposeIncludes>({});
   
   useEffect(() => {
     async function loadInitialData() {
@@ -55,12 +57,22 @@ function App() {
           }
         } catch (statusError) {
           console.error('[ERROR] Error checking server status:', statusError);
-          // Continue anyway, we'll try to load the services directly
         }
         
         // Load services
         setLoadingStatus('Loading services...');
         try {
+          const response = await fetch(`${loadedConfig.apiBaseUrl}${loadedConfig.referenceComposeFile}`);
+          const content = await response.text();
+          
+          // Extract includes from the compose file
+          const extractedIncludes = extractIncludes(content);
+          const includesState: ComposeIncludes = {};
+          extractedIncludes.forEach(path => {
+            includesState[path] = true; // Enable all includes by default
+          });
+          setIncludes(includesState);
+          
           const loadedServices = await loadServicesFromReference(loadedConfig.referenceComposeFile);
           console.log(`[DEBUG] Loaded ${loadedServices.length} services`);
           setServices(loadedServices);
@@ -91,11 +103,11 @@ function App() {
     loadInitialData();
   }, []);
   
-  // Generate the compose file whenever service state changes
+  // Generate the compose file whenever service state or includes change
   useEffect(() => {
-    const yaml = generateComposeFile(services, serviceState);
+    const yaml = generateComposeFile(services, serviceState, includes);
     setYamlContent(yaml);
-  }, [serviceState, services]);
+  }, [serviceState, services, includes]);
   
   // Handle service toggling
   const handleToggleService = (serviceId: string, selected: boolean) => {
@@ -124,6 +136,11 @@ function App() {
     } catch (error) {
       console.error('[ERROR] Failed to save env file:', error);
     }
+  };
+  
+  // Handle includes changes
+  const handleIncludesChange = (newIncludes: ComposeIncludes) => {
+    setIncludes(newIncludes);
   };
   
   // Manual retry loading
@@ -216,6 +233,13 @@ function App() {
           <div className="flex flex-col md:flex-row items-start gap-8">
             {/* Left Column - Service Selector */}
             <div className="w-full md:w-1/2 space-y-6">
+              {Object.keys(includes).length > 0 && (
+                <IncludeSelector
+                  includes={includes}
+                  onChange={handleIncludesChange}
+                />
+              )}
+              
               <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">Services</h2>

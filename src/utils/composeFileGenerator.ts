@@ -1,4 +1,4 @@
-import { ServiceDefinition, ServicesState } from '../types';
+import { ServiceDefinition, ServicesState, ComposeIncludes } from '../types';
 import * as yaml from 'js-yaml';
 
 // Clean up unused resources from the compose configuration
@@ -81,10 +81,11 @@ function cleanUnusedResources(compose: any, selectedServices: string[]) {
   return compose;
 }
 
-// Generate a docker-compose.yml file based on selected services
+// Generate a docker-compose.yml file based on selected services and includes
 export function generateComposeFile(
   services: ServiceDefinition[],
-  state: ServicesState
+  state: ServicesState,
+  includes: ComposeIncludes = {}
 ): string {
   const selectedServices = services.filter(service => state[service.id]?.selected);
   
@@ -104,6 +105,17 @@ export function generateComposeFile(
   
   // Create a new compose file starting with the original structure
   const composeFile = JSON.parse(JSON.stringify(originalCompose));
+  
+  // Add selected includes
+  const selectedIncludes = Object.entries(includes)
+    .filter(([, enabled]) => enabled)
+    .map(([path]) => path);
+
+  if (selectedIncludes.length > 0) {
+    composeFile.include = selectedIncludes;
+  } else {
+    delete composeFile.include;
+  }
   
   // Clear services and only add selected ones
   composeFile.services = {};
@@ -156,4 +168,17 @@ export function validateComposeFile(yamlContent: string): { valid: boolean; erro
   }
   
   return { valid, errors };
+}
+
+// Extract includes from compose file
+export function extractIncludes(yamlContent: string): string[] {
+  try {
+    const parsed = yaml.load(yamlContent) as any;
+    if (parsed && parsed.include) {
+      return Array.isArray(parsed.include) ? parsed.include : [parsed.include];
+    }
+  } catch (error) {
+    console.error('Error extracting includes:', error);
+  }
+  return [];
 }
