@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComposeIncludes } from '../types';
-import { Switch } from 'lucide-react';
+import { Twitch as Switch } from 'lucide-react';
 
 interface IncludeSelectorProps {
   includes: ComposeIncludes;
