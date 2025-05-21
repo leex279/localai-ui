@@ -127,12 +127,22 @@ export function generateComposeFile(
   const cleanedCompose = cleanUnusedResources(composeFile, selectedServiceIds);
   
   try {
-    return yaml.dump(cleanedCompose, {
+    // Convert to YAML with proper formatting
+    let yamlContent = yaml.dump(cleanedCompose, {
       indent: 2,
       lineWidth: -1,
       noRefs: true,
       sortKeys: false
     });
+
+    // Add extra line breaks between major sections
+    yamlContent = yamlContent
+      .replace(/\nvolumes:/g, '\n\nvolumes:')
+      .replace(/\nservices:/g, '\n\nservices:')
+      .replace(/\nnetworks:/g, '\n\nnetworks:')
+      .replace(/\ninclude:/g, 'include:');
+
+    return yamlContent;
   } catch (error) {
     console.error('Error generating YAML:', error);
     return '';
