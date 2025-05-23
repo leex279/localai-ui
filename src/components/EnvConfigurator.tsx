@@ -98,7 +98,7 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'docker-compose.env';
+    a.download = '.env';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
