@@ -1,5 +1,6 @@
-import React from 'react';
-import { SaveIcon, AlertCircleIcon, EyeIcon, EyeOffIcon, UploadIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { SaveIcon, AlertCircleIcon, EyeIcon, EyeOffIcon, UploadIcon, Download, ClipboardCopy, Check } from 'lucide-react';
+import { loadConfig } from '../config';
 
 export interface EnvVariable {
   key: string;
@@ -24,12 +25,15 @@ function parseEnvFile(envText: string): EnvVariable[] {
     if (trimmed.startsWith('#')) {
       description = trimmed.replace(/^#\s?/, '');
       required = /\[required\]/i.test(trimmed);
-    } else if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+      continue;
+    }
+
+    if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
       const [key, ...rest] = trimmed.split('=');
       variables.push({
         key: key.trim(),
         value: rest.join('=').trim(),
-        description,
+        description: description.replace(/\[.*?\]\s*/, ''), // Remove category markers
         required,
       });
       description = '';
@@ -39,10 +43,25 @@ function parseEnvFile(envText: string): EnvVariable[] {
   return variables;
 }
 
+function generateEnvContent(variables: EnvVariable[]): string {
+  return variables
+    .map(variable => {
+      const lines = [];
+      if (variable.description) {
+        lines.push(`# ${variable.description}`);
+      }
+      lines.push(`${variable.key}=${variable.value}`);
+      return lines.join('\n');
+    })
+    .join('\n\n');
+}
+
 export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
-  const [variables, setVariables] = React.useState<EnvVariable[]>([]);
-  const [showSecrets, setShowSecrets] = React.useState<Record<string, boolean>>({});
-  const [fileName, setFileName] = React.useState<string>('');
+  const [variables, setVariables] = useState<EnvVariable[]>([]);
+  const [fileName, setFileName] = useState<string>('');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,14 +81,63 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
     setVariables(updatedVariables);
   };
 
-  const toggleSecretVisibility = (key: string) => {
-    setShowSecrets(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+  const handleCopyToClipboard = async () => {
+    const content = generateEnvContent(variables);
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
-  // Group variables by category in [category] in description
+  const handleDownload = () => {
+    const content = generateEnvContent(variables);
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'docker-compose.env';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSaveToFile = async () => {
+    try {
+      setSaveStatus('saving');
+      setSaveError(null);
+      
+      const content = generateEnvContent(variables);
+      const config = await loadConfig();
+      const apiUrl = `${config.apiBaseUrl}/api/save-env`;
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save env file');
+      }
+
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      console.error('Error saving env file:', error);
+      setSaveStatus('error');
+      setSaveError(error instanceof Error ? error.message : 'Unknown error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
+
+  // Group variables by category based on description
   const groupedVariables = variables.reduce((acc, variable) => {
     const category = variable.description?.match(/\[(.*?)\]/)
       ? variable.description.match(/\[(.*?)\]/)![1]
@@ -88,7 +156,40 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Environment Variables</h2>
           <div className="flex items-center gap-2">
-            <label className="flex items-center cursor-pointer gap-2 bg-gray-200 dark:bg-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+            <button
+              onClick={handleCopyToClipboard}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              {copySuccess ? <Check className="w-4 h-4" /> : <ClipboardCopy className="w-4 h-4" />}
+              {copySuccess ? 'Copied!' : 'Copy'}
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Download
+            </button>
+            <button
+              onClick={handleSaveToFile}
+              disabled={saveStatus === 'saving'}
+              className={`flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white rounded transition-colors ${
+                saveStatus === 'saving'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {saveStatus === 'saving' ? (
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : saveStatus === 'success' ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <SaveIcon className="w-4 h-4" />
+              )}
+              {saveStatus === 'saving' ? 'Saving...' : 
+               saveStatus === 'success' ? 'Saved!' : 'Save to Disk'}
+            </button>
+            <label className="flex items-center cursor-pointer gap-2 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
               <UploadIcon className="w-4 h-4" />
               <span className="text-sm">Load .env File</span>
               <input
@@ -98,13 +199,6 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
                 className="hidden"
               />
             </label>
-            <button
-              onClick={() => onSave(variables)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <SaveIcon className="w-4 h-4" />
-              Save Configuration
-            </button>
           </div>
         </div>
         {fileName && (
@@ -121,11 +215,6 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
             <div className="space-y-4">
               {categoryVariables.map((variable, idx) => {
                 const originalIndex = variables.findIndex(v => v.key === variable.key);
-                const isSecret = variable.key.toLowerCase().includes('password') ||
-                  variable.key.toLowerCase().includes('secret') ||
-                  variable.key.toLowerCase().includes('key');
-                // Remove category from description
-                const description = variable.description?.replace(/\[.*?\]\s*/, '');
                 return (
                   <div key={variable.key} className="grid grid-cols-12 gap-4 items-start">
                     <div className="col-span-3">
@@ -133,9 +222,9 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
                         {variable.key}
                       </label>
                     </div>
-                    <div className="col-span-4 relative">
+                    <div className="col-span-4">
                       <input
-                        type={isSecret && !showSecrets[variable.key] ? "password" : "text"}
+                        type="text"
                         value={variable.value}
                         onChange={(e) => handleVariableChange(originalIndex, 'value', e.target.value)}
                         placeholder={variable.required ? "Required" : "Optional"}
@@ -145,19 +234,6 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
                             : 'border-gray-300 dark:border-gray-600'
                         }`}
                       />
-                      {isSecret && (
-                        <button
-                          type="button"
-                          onClick={() => toggleSecretVisibility(variable.key)}
-                          className="absolute right-2 top-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                        >
-                          {showSecrets[variable.key] ? (
-                            <EyeOffIcon className="w-5 h-5" />
-                          ) : (
-                            <EyeIcon className="w-5 h-5" />
-                          )}
-                        </button>
-                      )}
                     </div>
                     <div className="col-span-5 flex items-center gap-2">
                       {variable.required && (
@@ -166,9 +242,9 @@ export default function EnvConfigurator({ onSave }: EnvConfiguratorProps) {
                           <span className="text-sm">Required</span>
                         </div>
                       )}
-                      {description && (
+                      {variable.description && (
                         <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {description}
+                          {variable.description}
                         </span>
                       )}
                     </div>
