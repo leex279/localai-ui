@@ -31,7 +31,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
             }`}
           >
             <FileTextIcon className="w-4 h-4 mr-2" />
-            Environment Variables
+            Environment Variables (WIP)
           </button>
         </div>
       </div>
