@@ -20,6 +20,18 @@ export default defineConfig({
     'process.env': envVariables
   },
   server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      },
+      '/config.json': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      }
+    },
     fs: {
       strict: false,
       allow: [
