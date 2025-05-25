@@ -10,6 +10,11 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// Get base directory for file operations
+const getBaseDir = () => {
+  return process.env.DOCKER_CONTAINER ? '/app' : process.cwd();
+};
+
 // Create directories if they don't exist
 async function ensureDirectoryExists(filePath) {
   const dir = dirname(filePath);
@@ -37,7 +42,8 @@ async function checkFileAccess(filePath) {
 app.get('/api/list-dir/:path(*)', async (req, res) => {
   try {
     const requestedPath = req.params.path;
-    const fullPath = join('/app', requestedPath);
+    const baseDir = getBaseDir();
+    const fullPath = join(baseDir, requestedPath);
     console.log(`[DEBUG] Listing directory: ${fullPath}`);
     
     const { readdir } = await import('fs/promises');
@@ -65,7 +71,8 @@ app.get('/api/list-dir/:path(*)', async (req, res) => {
 app.get('/api/files/input/*', async (req, res) => {
   try {
     const requestPath = req.path;
-    const filePath = requestPath.replace('/api/files/input/', '/app/input/');
+    const baseDir = getBaseDir();
+    const filePath = requestPath.replace('/api/files/input/', join(baseDir, 'input/'));
     console.log(`[DEBUG] Request path: ${requestPath}`);
     console.log(`[DEBUG] Reading file: ${filePath}`);
     
@@ -106,7 +113,8 @@ app.post('/api/save-compose', async (req, res) => {
       return res.status(400).json({ error: 'No content provided' });
     }
     
-    const outputPath = '/app/output/docker-compose.yml';
+    const baseDir = getBaseDir();
+    const outputPath = join(baseDir, 'output/docker-compose.yml');
     console.log(`[DEBUG] Saving compose file to: ${outputPath}`);
     
     await ensureDirectoryExists(outputPath);
@@ -135,7 +143,8 @@ app.post('/api/save-env', async (req, res) => {
       return res.status(400).json({ error: 'No content provided' });
     }
     
-    const outputPath = path || '/app/output/.env';
+    const baseDir = getBaseDir();
+    const outputPath = path || join(baseDir, 'output/.env');
     console.log(`[DEBUG] Saving env file to: ${outputPath}`);
     
     await ensureDirectoryExists(outputPath);
@@ -158,8 +167,10 @@ app.get('/api/status', async (req, res) => {
   try {
     console.log(`[DEBUG] Status check requested`);
     
+    const baseDir = getBaseDir();
+    
     // Check input directory
-    const inputPath = '/app/input';
+    const inputPath = join(baseDir, 'input');
     let inputStatus;
     try {
       await access(inputPath, constants.F_OK | constants.R_OK);
@@ -180,7 +191,7 @@ app.get('/api/status', async (req, res) => {
     }
     
     // Check output directory
-    const outputPath = '/app/output';
+    const outputPath = join(baseDir, 'output');
     let outputStatus;
     try {
       await access(outputPath, constants.F_OK | constants.R_OK | constants.W_OK);
@@ -199,7 +210,7 @@ app.get('/api/status', async (req, res) => {
     }
     
     // Check specific files
-    const composeFilePath = '/app/input/docker-compose.yml';
+    const composeFilePath = join(baseDir, 'input/docker-compose.yml');
     let composeFileStatus;
     try {
       await access(composeFilePath, constants.F_OK | constants.R_OK);
@@ -224,7 +235,8 @@ app.get('/api/status', async (req, res) => {
       environment: {
         NODE_ENV: process.env.NODE_ENV,
         PORT: process.env.PORT,
-        API_URL: process.env.VITE_API_URL
+        API_URL: process.env.VITE_API_URL,
+        DOCKER: process.env.DOCKER_CONTAINER ? true : false
       },
       volumes: {
         input: inputStatus,
@@ -242,7 +254,9 @@ app.get('/api/status', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[INFO] Backend server running on http://0.0.0.0:${PORT}`);
-  console.log(`[INFO] Serving files from /app/input and saving to /app/output`);
+  console.log(`[INFO] Running in ${process.env.DOCKER_CONTAINER ? 'Docker' : 'local'} mode`);
+  console.log(`[INFO] Base directory: ${getBaseDir()}`);
+  console.log(`[INFO] Serving files from ${join(getBaseDir(), 'input')} and saving to ${join(getBaseDir(), 'output')}`);
   
   // Log all environment variables for debugging
   console.log('[DEBUG] Environment variables:');
