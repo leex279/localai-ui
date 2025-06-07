@@ -1,6 +1,36 @@
-import { ServiceDefinition } from '../types';
+import { ServiceDefinition, CustomServicesJson, CustomServiceConfig } from '../types';
 
-// Service definitions based on the docker-compose.yml file
+// Convert custom services JSON to ServiceDefinition array
+export function convertCustomServicesToDefinitions(
+  customServices: CustomServicesJson,
+  profile: string = 'cpu'
+): ServiceDefinition[] {
+  const definitions: ServiceDefinition[] = [];
+  
+  Object.entries(customServices.services).forEach(([category, services]) => {
+    Object.entries(services).forEach(([serviceId, config]) => {
+      // Handle profile-specific services (e.g., ollama variants)
+      const actualServiceId = config.profiles?.[profile] || serviceId;
+      
+      definitions.push({
+        id: actualServiceId,
+        name: serviceId.charAt(0).toUpperCase() + serviceId.slice(1).replace(/-/g, ' '),
+        description: config.description,
+        category: config.category as 'ai' | 'database' | 'infrastructure' | 'utility',
+        dependencies: config.dependencies,
+        required: config.required,
+        originalConfig: {
+          // Placeholder - will be populated from actual docker-compose.yml
+          enabled: config.enabled
+        }
+      });
+    });
+  });
+  
+  return definitions;
+}
+
+// Legacy service definitions for backward compatibility
 export const services: ServiceDefinition[] = [
   {
     id: 'n8n',
@@ -303,3 +333,182 @@ export const services: ServiceDefinition[] = [
     }
   }
 ];
+
+// Default custom services configuration matching the existing custom_services.json
+export const defaultCustomServices: CustomServicesJson = {
+  version: "1.0",
+  description: "Configuration file for customizing which services to start in the local AI stack",
+  services: {
+    core: {
+      "localai-ui": {
+        enabled: true,
+        required: false,
+        description: "Web-based service configurator",
+        category: "infrastructure",
+        dependencies: []
+      },
+      caddy: {
+        enabled: true,
+        required: true,
+        description: "Reverse proxy with automatic HTTPS",
+        category: "infrastructure",
+        dependencies: []
+      }
+    },
+    ai_platforms: {
+      n8n: {
+        enabled: true,
+        required: false,
+        description: "Workflow automation platform",
+        category: "ai",
+        dependencies: ["n8n-import"]
+      },
+      "n8n-import": {
+        enabled: true,
+        required: false,
+        description: "N8N workflow and credential importer",
+        category: "ai",
+        dependencies: []
+      },
+      "open-webui": {
+        enabled: true,
+        required: false,
+        description: "ChatGPT-like interface for local models",
+        category: "ai",
+        dependencies: []
+      },
+      flowise: {
+        enabled: true,
+        required: false,
+        description: "No-code AI agent builder",
+        category: "ai",
+        dependencies: []
+      }
+    },
+    llm_services: {
+      ollama: {
+        enabled: true,
+        required: false,
+        description: "Local LLM hosting service",
+        category: "ai",
+        dependencies: [],
+        profiles: {
+          cpu: "ollama-cpu",
+          "gpu-nvidia": "ollama-gpu",
+          "gpu-amd": "ollama-gpu-amd"
+        },
+        pull_services: {
+          cpu: "ollama-pull-llama-cpu",
+          "gpu-nvidia": "ollama-pull-llama-gpu",
+          "gpu-amd": "ollama-pull-llama-gpu-amd"
+        }
+      }
+    },
+    databases: {
+      supabase: {
+        enabled: true,
+        required: false,
+        description: "Complete backend with Postgres, auth, real-time",
+        category: "database",
+        dependencies: [],
+        external_compose: true,
+        compose_path: "./supabase/docker/docker-compose.yml"
+      },
+      qdrant: {
+        enabled: true,
+        required: false,
+        description: "Vector database for RAG operations",
+        category: "database",
+        dependencies: []
+      },
+      neo4j: {
+        enabled: true,
+        required: false,
+        description: "Graph database for knowledge graphs",
+        category: "database",
+        dependencies: []
+      },
+      postgres: {
+        enabled: true,
+        required: false,
+        description: "PostgreSQL database for Langfuse",
+        category: "database",
+        dependencies: []
+      },
+      clickhouse: {
+        enabled: true,
+        required: false,
+        description: "Analytics database for Langfuse",
+        category: "database",
+        dependencies: []
+      },
+      redis: {
+        enabled: true,
+        required: false,
+        description: "Caching and session storage",
+        category: "database",
+        dependencies: []
+      }
+    },
+    monitoring: {
+      "langfuse-web": {
+        enabled: true,
+        required: false,
+        description: "LLM observability web interface",
+        category: "monitoring",
+        dependencies: ["langfuse-worker", "postgres", "clickhouse", "redis", "minio"]
+      },
+      "langfuse-worker": {
+        enabled: true,
+        required: false,
+        description: "Langfuse background worker",
+        category: "monitoring",
+        dependencies: ["postgres", "clickhouse", "redis", "minio"]
+      }
+    },
+    utilities: {
+      searxng: {
+        enabled: true,
+        required: false,
+        description: "Privacy-focused metasearch engine",
+        category: "utility",
+        dependencies: []
+      },
+      minio: {
+        enabled: true,
+        required: false,
+        description: "S3-compatible object storage",
+        category: "utility",
+        dependencies: []
+      }
+    }
+  },
+  profiles: {
+    cpu: {
+      description: "CPU-only mode for Ollama",
+      default: true
+    },
+    "gpu-nvidia": {
+      description: "NVIDIA GPU support for Ollama",
+      default: false
+    },
+    "gpu-amd": {
+      description: "AMD GPU support for Ollama with ROCm",
+      default: false
+    },
+    none: {
+      description: "No local Ollama (for external instances)",
+      default: false
+    }
+  },
+  environments: {
+    private: {
+      description: "Development mode with all ports exposed",
+      default: true
+    },
+    public: {
+      description: "Production mode with only ports 80/443 exposed",
+      default: false
+    }
+  }
+};

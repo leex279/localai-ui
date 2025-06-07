@@ -1,163 +1,223 @@
-# Docker Compose Configurator
+# LocalAI UI Configurator
 
-The Docker Compose Configurator is a web-based tool for easily creating and customizing Docker Compose configurations tailored to your needs. This application helps you build production-ready Docker Compose files by selecting only the services you need, with automatic dependency resolution and environment variable management.
-
-![Docker Compose Configurator Screenshot](https://images.pexels.com/photos/546819/pexels-photo-546819.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=750&w=1260)
+A user-friendly web interface for configuring and managing your local AI services. This tool provides an intuitive way to select services, manage dependencies, and generate Docker Compose configurations for your local AI stack.
 
 ## Features
 
-- ✅ Visual service selection with dependency management
-- ✅ Automatic detection and inclusion of required dependencies
-- ✅ Interactive dependency visualization graph
-- ✅ Environment variable configuration with category support
-- ✅ Real-time YAML preview and validation
-- ✅ Easy export to file or direct save to disk
-- ✅ Support for AI services, databases, infrastructure, and utility containers
+### 🎯 **Service Orchestrator (New!)**
+- **Visual Service Management**: Configure which services to start with an intuitive interface
+- **Profile Selection**: Easy switching between CPU, GPU-NVIDIA, and GPU-AMD configurations
+- **Environment Management**: Choose between development (private) and production (public) modes
+- **Dependency Resolution**: Automatic handling of service dependencies
+- **Real-time Status**: Monitor service health and status (extensible)
+- **Persistent Configuration**: Saves to `custom_services.json` for integration with startup scripts
 
-## Use Cases
+### 🐳 **Docker Compose Generator**
+- **Intelligent Service Selection**: Choose from a comprehensive list of AI and infrastructure services
+- **Automatic Dependency Resolution**: The system automatically includes required dependencies
+- **Visual Dependency Graph**: See how services depend on each other
+- **Production-Ready Output**: Generate optimized Docker Compose files
+- **Include Management**: Handle external compose file includes
 
-- **Development Environments**: Quickly set up developer environments with tools like Supabase, LLM services, and database containers
-- **Production Deployments**: Create optimized production configurations by excluding unnecessary services
-- **Learning Docker**: Visualize container dependencies and understand Docker Compose configuration
-- **Multi-Component Systems**: Manage complex systems with multiple interrelated services
+### ⚙️ **Environment Configuration**
+- **Environment Variable Management**: Configure your `.env` file through a user-friendly interface
+- **Validation**: Ensure required variables are set correctly
+- **Template Support**: Load from existing environment files
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
+- **Node.js** (v16 or higher)
+- **npm** or **yarn**
+- **Python 3** (for the start script)
 
-- Docker
-- Docker Compose
+### Easy Start (Recommended)
+```bash
+# Navigate to the localai-ui directory
+cd localai-ui
 
-### Running with Docker
+# Run the start script (auto-installs dependencies and opens browser)
+python start_configurator.py
+```
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/docker-compose-configurator.git
-   cd docker-compose-configurator
-   ```
+The script will:
+1. ✅ Check and install dependencies automatically
+2. 🏗️ Set up required directories
+3. 🔧 Start the backend server (port 3001)
+4. 🎨 Start the frontend server (port 3000)
+5. 🌐 Automatically open your browser
 
-2. Place your reference docker-compose.yml and .env files in the input directory:
-   ```bash
-   cp your-docker-compose.yml input/docker-compose.yml
-   cp your-env-file input/env
-   ```
+### Manual Start
+If you prefer to start services manually:
 
-3. Start the application:
-   ```bash
-   docker compose up --build
-   ```
+```bash
+# Install dependencies
+npm install
+cd backend && npm install && cd ..
 
-4. Access the web interface at http://localhost:3000
+# Start backend (terminal 1)
+cd backend
+npm start
 
-### Usage Instructions
+# Start frontend (terminal 2)
+npm run dev
+```
 
-1. In the **Docker Compose** tab:
-   - Select the services you want to include in your configuration
-   - View the dependency graph to understand relationships between services
-   - See the generated YAML update in real-time
-   - Download or save the compose file to disk
+Then open http://localhost:3000 in your browser.
 
-2. In the **Environment Variables** tab:
-   - Configure required and optional environment variables
-   - Variables are grouped by category for easier management
-   - Save your environment configuration to an .env file
+## Usage Guide
 
-3. Find your generated files in the `output` directory:
-   - `docker-compose.yml`: Your customized compose file
-   - `.env`: Your environment configuration
+### 1. Service Orchestrator Tab
+- **Select Services**: Check the services you want to include in your stack
+- **Choose Profile**: Select CPU, GPU-NVIDIA, or GPU-AMD based on your hardware
+- **Set Environment**: Choose between private (development) or public (production)
+- **Save Configuration**: Click "Save Configuration" to persist your choices
+- **Start Services**: Use "Start Selected Services" to launch your stack (requires integration)
 
-## Architecture
+### 2. Docker Compose Tab
+- **Browse Services**: Explore available services organized by category
+- **Toggle Services**: Click checkboxes to include/exclude services
+- **View Dependencies**: Use "Show Dependency Graph" to visualize relationships
+- **Generate & Download**: Download your customized `docker-compose.yml`
 
-The application consists of:
+### 3. Environment Variables Tab
+- **Configure Variables**: Set required environment variables
+- **Load Templates**: Import from existing `.env` files
+- **Save Configuration**: Export your environment configuration
 
-- **Frontend**: React application with Tailwind CSS for the user interface
-- **Backend**: Express.js server for file operations and API endpoints
-- **Docker**: Containerized environment for running the entire stack
+## Service Categories
 
-### Key Components
+### 🤖 **AI Platforms**
+- **n8n**: Workflow automation platform
+- **Flowise**: No-code AI agent builder
+- **Open WebUI**: ChatGPT-like interface for local models
 
-- **Service Selector**: Allows selection of services with dependency tracking
-- **Dependency Graph**: Visual representation of service relationships
-- **YAML Preview**: Real-time preview and validation of the Docker Compose file
-- **Environment Configurator**: Form-based editor for environment variables
+### 🧠 **LLM Services**
+- **Ollama**: Local LLM hosting (CPU/GPU variants)
+
+### 🗄️ **Databases**
+- **Supabase**: Complete backend with Postgres, auth, real-time
+- **Qdrant**: Vector database for RAG operations
+- **Neo4j**: Graph database for knowledge graphs
+- **PostgreSQL**: Traditional relational database
+- **Redis**: Caching and session storage
+- **ClickHouse**: Analytics database
+
+### 📊 **Monitoring**
+- **Langfuse**: LLM observability and analytics
+
+### 🔧 **Infrastructure**
+- **Caddy**: Reverse proxy with automatic HTTPS
+
+### 🛠️ **Utilities**
+- **SearXNG**: Privacy-focused metasearch engine
+- **MinIO**: S3-compatible object storage
+
+## Configuration Files
+
+### Input Files
+- `input/docker-compose.yml`: Reference Docker Compose configuration
+- `input/env`: Template environment variables
+
+### Output Files
+- `output/docker-compose.yml`: Generated Docker Compose file
+- `output/.env`: Generated environment configuration
+- `../shared/custom_services.json`: Service orchestration configuration
+
+## Integration with start_services.py
+
+The Service Orchestrator creates a `custom_services.json` file that can be used with the main `start_services.py` script:
+
+```bash
+# After configuring services in the UI
+cd ..
+python start_services.py --profile gpu-nvidia --environment private
+```
+
+The startup script will read your saved configuration and start only the selected services.
+
+## API Endpoints
+
+The backend provides several REST API endpoints:
+
+- `GET /api/custom-services`: Load service configuration
+- `POST /api/custom-services`: Save service configuration  
+- `GET /api/service-status`: Get current service status
+- `POST /api/start-services`: Start selected services
+- `POST /api/stop-services`: Stop services
+- `GET /api/status`: Check backend health
 
 ## Development
 
 ### Project Structure
-
 ```
-docker-compose-configurator/
-├── backend/                  # Express.js backend
-│   ├── server.js             # API endpoints and file handling
-│   └── package.json          # Backend dependencies
-├── src/
-│   ├── components/           # React components
-│   ├── config/               # Application configuration
-│   ├── utils/                # Utility functions
-│   └── App.tsx               # Main application component
-├── public/                   # Static assets
-├── input/                    # Input directory for reference files (mounted)
-├── output/                   # Output directory for generated files (mounted)
-├── Dockerfile                # Container definition
-└── docker-compose.yml        # Service configuration for development
+localai-ui/
+├── src/                    # Frontend source code
+│   ├── components/         # React components
+│   ├── utils/              # Utility functions
+│   ├── types/              # TypeScript type definitions
+│   └── data/               # Service definitions
+├── backend/                # Backend API server
+├── input/                  # Template/reference files
+├── output/                 # Generated configurations
+└── start_configurator.py  # Launch script
 ```
 
-### Running Locally for Development
+### Building for Production
+```bash
+npm run build
+```
 
-1. Install dependencies:
-   ```bash
-   npm install
-   cd backend && npm install && cd ..
-   ```
-
-2. Start the backend:
-   ```bash
-   npm run start:backend
-   ```
-
-3. Start the frontend:
-   ```bash
-   npm run dev
-   ```
+### Running Tests
+```bash
+npm test
+```
 
 ## Troubleshooting
 
-### File Access Issues
+### Common Issues
 
-If you encounter problems with file access:
+**"Module not found" errors**
+```bash
+# Reinstall dependencies
+rm -rf node_modules backend/node_modules
+npm install
+cd backend && npm install
+```
 
-1. Ensure your input directory contains the necessary files:
-   - `docker-compose.yml`: Reference Docker Compose file
-   - `env`: Reference environment variable file
+**Port conflicts**
+```bash
+# Check if ports 3000 or 3001 are in use
+lsof -i :3000
+lsof -i :3001
+```
 
-2. Check permissions on your input and output directories:
-   ```bash
-   chmod -R 755 input
-   chmod -R 777 output
-   ```
+**Permission errors on Windows**
+```bash
+# Run as administrator or use PowerShell
+python start_configurator.py
+```
 
-3. Verify Docker volume mounts in your docker-compose.yml:
-   ```yaml
-   volumes:
-     - ./input:/app/input:ro
-     - ./output:/app/output
-   ```
+**Services not starting**
+- Check that Docker is running
+- Verify volume mounts in the parent docker-compose.yml
+- Check backend logs for detailed error messages
 
-### Server Connectivity Issues
+### Getting Help
 
-If the frontend cannot connect to the backend:
+1. Check the browser console for frontend errors
+2. Check the terminal output for backend logs
+3. Verify your `input/` directory has the required template files
+4. Ensure Docker is running if testing service orchestration
 
-1. Confirm the backend is running (check logs with `docker-compose logs`)
-2. Verify the API URL in `public/config.json` matches your environment
-3. Check for CORS issues in the developer console
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/new-feature`
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-MIT License
-
-## Acknowledgments
-
-- [React](https://reactjs.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Lucide Icons](https://lucide.dev/)
-- [js-yaml](https://github.com/nodeca/js-yaml)
+This project is part of the local-ai-packaged ecosystem. Please refer to the main project license.

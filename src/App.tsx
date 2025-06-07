@@ -11,6 +11,7 @@ import EnvConfigurator from './components/EnvConfigurator';
 import IncludeSelector from './components/IncludeSelector';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
+import { ServiceOrchestrator } from './components/ServiceOrchestrator';
 
 function App() {
   const [services, setServices] = useState<ServiceDefinition[]>([]);
@@ -19,7 +20,7 @@ function App() {
   const [showGraph, setShowGraph] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'compose' | 'env'>('compose');
+  const [activeTab, setActiveTab] = useState<'compose' | 'env' | 'orchestrator'>('orchestrator');
   const [envVariables, setEnvVariables] = useState<EnvVariable[]>([]);
   const [config, setConfig] = useState<any>(null);
   const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
@@ -225,6 +226,8 @@ function App() {
           <p className="text-lg text-gray-700 dark:text-gray-300">
             {activeTab === 'compose' 
               ? 'Select the services you need for your Docker environment. Our intelligent system will automatically handle dependencies and generate a production-ready compose file for you.'
+              : activeTab === 'orchestrator'
+              ? 'Manage your local AI services with intelligent configuration and real-time orchestration. Configure which services to run and control them directly from this interface.'
               : 'Configure your environment variables. These settings will be saved to your .env file.'}
           </p>
         </div>
@@ -280,6 +283,8 @@ function App() {
               />
             </div>
           </div>
+        ) : activeTab === 'orchestrator' ? (
+          <ServiceOrchestrator className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" />
         ) : (
           <EnvConfigurator
             onSave={handleSaveEnv}

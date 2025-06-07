@@ -153,6 +153,167 @@ app.post('/api/save-env', async (req, res) => {
   }
 });
 
+// Get custom services configuration
+app.get('/api/custom-services', async (req, res) => {
+  try {
+    console.log(`[DEBUG] Get custom services config request received`);
+    
+    const sharedPath = '/app/shared/custom_services.json';
+    
+    // Check if custom services file exists
+    const fileExists = await checkFileAccess(sharedPath);
+    if (!fileExists) {
+      console.log(`[DEBUG] Custom services file not found, returning default config`);
+      // Return a default configuration if file doesn't exist
+      const defaultConfig = {
+        version: "1.0",
+        description: "Configuration file for customizing which services to start in the local AI stack",
+        services: {},
+        profiles: {
+          cpu: { description: "CPU-only mode for Ollama", default: true },
+          "gpu-nvidia": { description: "NVIDIA GPU support for Ollama", default: false },
+          "gpu-amd": { description: "AMD GPU support for Ollama with ROCm", default: false },
+          none: { description: "No local Ollama (for external instances)", default: false }
+        },
+        environments: {
+          private: { description: "Development mode with all ports exposed", default: true },
+          public: { description: "Production mode with only ports 80/443 exposed", default: false }
+        }
+      };
+      return res.json(defaultConfig);
+    }
+    
+    const content = await readFile(sharedPath, 'utf8');
+    const config = JSON.parse(content);
+    
+    console.log(`[DEBUG] Custom services config loaded successfully`);
+    res.json(config);
+  } catch (error) {
+    console.error('[ERROR] Error loading custom services config:', error);
+    res.status(500).json({ 
+      error: 'Failed to load custom services config', 
+      details: error.message,
+      code: error.code
+    });
+  }
+});
+
+// Save custom services configuration
+app.post('/api/custom-services', async (req, res) => {
+  try {
+    const { config } = req.body;
+    console.log(`[DEBUG] Save services config request received`);
+    
+    if (!config) {
+      console.error(`[ERROR] No config provided for save services config`);
+      return res.status(400).json({ error: 'No config provided' });
+    }
+    
+    // Save to both output directory and shared directory (where start_services.py expects it)
+    const outputPath = '/app/output/custom_services.json';
+    const sharedPath = '/app/shared/custom_services.json';
+    
+    console.log(`[DEBUG] Saving services config to: ${outputPath} and ${sharedPath}`);
+    
+    const configJson = JSON.stringify(config, null, 2);
+    
+    await ensureDirectoryExists(outputPath);
+    await writeFile(outputPath, configJson, 'utf8');
+    
+    // Also save to shared directory so start_services.py can access it
+    await ensureDirectoryExists(sharedPath);
+    await writeFile(sharedPath, configJson, 'utf8');
+    
+    console.log(`[DEBUG] Services config saved successfully`);
+    res.json({ success: true, paths: [outputPath, sharedPath] });
+  } catch (error) {
+    console.error('[ERROR] Error saving services config:', error);
+    res.status(500).json({ 
+      error: 'Failed to save services config', 
+      details: error.message,
+      code: error.code
+    });
+  }
+});
+
+// Get service status (placeholder for future Docker integration)
+app.get('/api/service-status', async (req, res) => {
+  try {
+    console.log(`[DEBUG] Service status request received`);
+    
+    // For now, return mock data. In the future, this would integrate with Docker API
+    const mockStatus = [
+      { id: 'n8n', name: 'n8n', status: 'stopped', health: 'unknown' },
+      { id: 'ollama-cpu', name: 'Ollama (CPU)', status: 'stopped', health: 'unknown' },
+      { id: 'open-webui', name: 'Open WebUI', status: 'stopped', health: 'unknown' },
+      { id: 'flowise', name: 'Flowise', status: 'stopped', health: 'unknown' }
+    ];
+    
+    res.json(mockStatus);
+  } catch (error) {
+    console.error('[ERROR] Error getting service status:', error);
+    res.status(500).json({ 
+      error: 'Failed to get service status', 
+      details: error.message
+    });
+  }
+});
+
+// Start services (placeholder for future integration with start_services.py)
+app.post('/api/start-services', async (req, res) => {
+  try {
+    const { serviceIds, profile, environment } = req.body;
+    console.log(`[DEBUG] Start services request: ${JSON.stringify({ serviceIds, profile, environment })}`);
+    
+    // For now, just acknowledge the request
+    // In the future, this would call start_services.py with the --services flag
+    res.json({ 
+      success: true, 
+      message: 'Service start request received (not implemented yet)',
+      serviceIds,
+      profile,
+      environment
+    });
+  } catch (error) {
+    console.error('[ERROR] Error starting services:', error);
+    res.status(500).json({ 
+      error: 'Failed to start services', 
+      details: error.message
+    });
+  }
+});
+
+// Stop services (placeholder for future integration)
+app.post('/api/stop-services', async (req, res) => {
+  try {
+    const { serviceIds } = req.body;
+    console.log(`[DEBUG] Stop services request: ${JSON.stringify({ serviceIds })}`);
+    
+    // For now, just acknowledge the request
+    res.json({ 
+      success: true, 
+      message: 'Service stop request received (not implemented yet)',
+      serviceIds
+    });
+  } catch (error) {
+    console.error('[ERROR] Error stopping services:', error);
+    res.status(500).json({ 
+      error: 'Failed to stop services', 
+      details: error.message
+    });
+  }
+});
+
+// Legacy endpoint for backward compatibility
+app.post('/api/save-services-config', async (req, res) => {
+  // Redirect to the new endpoint
+  const { config } = req.body;
+  req.body = { config };
+  req.url = '/api/custom-services';
+  req.method = 'POST';
+  return app._router.handle(req, res);
+});
+
 // Add a route to check server status and volume mounts
 app.get('/api/status', async (req, res) => {
   try {

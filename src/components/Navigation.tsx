@@ -1,9 +1,9 @@
 import React from 'react';
-import { Settings2Icon, FileTextIcon } from 'lucide-react';
+import { Settings2Icon, FileTextIcon, PlayIcon } from 'lucide-react';
 
 interface NavigationProps {
-  activeTab: 'compose' | 'env';
-  onTabChange: (tab: 'compose' | 'env') => void;
+  activeTab: 'compose' | 'env' | 'orchestrator';
+  onTabChange: (tab: 'compose' | 'env' | 'orchestrator') => void;
 }
 
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
@@ -21,6 +21,17 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
           >
             <Settings2Icon className="w-4 h-4 mr-2" />
             Docker Compose
+          </button>
+          <button
+            onClick={() => onTabChange('orchestrator')}
+            className={`flex items-center px-4 py-3 text-sm font-medium ${
+              activeTab === 'orchestrator'
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <PlayIcon className="w-4 h-4 mr-2" />
+            Service Orchestrator
           </button>
           <button
             onClick={() => onTabChange('env')}
