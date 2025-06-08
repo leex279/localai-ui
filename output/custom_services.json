@@ -4,7 +4,7 @@
   "services": {
     "core": {
       "localai-ui": {
-        "enabled": true,
+        "enabled": false,
         "required": false,
         "description": "Web-based service configurator",
         "category": "infrastructure",
@@ -43,7 +43,7 @@
         "dependencies": []
       },
       "flowise": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "No-code AI agent builder",
         "category": "ai",
@@ -52,7 +52,7 @@
     },
     "llm_services": {
       "ollama": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Local LLM hosting service",
         "category": "ai",
@@ -87,7 +87,7 @@
         "dependencies": []
       },
       "neo4j": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Graph database for knowledge graphs",
         "category": "database",
@@ -108,7 +108,7 @@
         "dependencies": []
       },
       "redis": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Caching and session storage",
         "category": "database",
@@ -144,7 +144,7 @@
     },
     "utilities": {
       "searxng": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "description": "Privacy-focused metasearch engine",
         "category": "utility",

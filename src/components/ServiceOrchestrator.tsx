@@ -78,6 +78,26 @@ export const ServiceOrchestrator: React.FC<ServiceOrchestratorProps> = ({ classN
         setSaveMessage(`Enabled ${serviceId} and its dependencies: ${autoEnabledServices.join(', ')}`);
         setTimeout(() => setSaveMessage(null), 5000);
       }
+    } 
+    // If disabling a service, automatically disable services that depend on it
+    else {
+      const dependentServices = getServicesDependingOn(customServices, serviceId);
+      const autoDisabledServices = [];
+      
+      for (const dependent of dependentServices) {
+        // Check if dependent was previously enabled
+        const wasEnabled = getServiceEnabled(customServices, dependent);
+        if (wasEnabled) {
+          autoDisabledServices.push(dependent);
+        }
+        updatedConfig = updateServiceInCustomConfig(updatedConfig, dependent, { enabled: false });
+      }
+      
+      // Show message about auto-disabled dependents
+      if (autoDisabledServices.length > 0) {
+        setSaveMessage(`Disabled ${serviceId} and services that depend on it: ${autoDisabledServices.join(', ')}`);
+        setTimeout(() => setSaveMessage(null), 5000);
+      }
     }
     
     setCustomServices(updatedConfig);
@@ -119,6 +139,23 @@ export const ServiceOrchestrator: React.FC<ServiceOrchestratorProps> = ({ classN
       }
     }
     return [];
+  };
+
+  // Helper function to find all services that depend on a specific service
+  const getServicesDependingOn = (config: CustomServicesJson, targetServiceId: string): string[] => {
+    const dependentServices: string[] = [];
+    
+    for (const [category, services] of Object.entries(config.services)) {
+      for (const [serviceId, serviceConfig] of Object.entries(services)) {
+        const dependencies = serviceConfig.dependencies || [];
+        // Check if this service directly depends on the target service
+        if (dependencies.includes(targetServiceId)) {
+          dependentServices.push(serviceId);
+        }
+      }
+    }
+    
+    return dependentServices;
   };
 
   const handleSaveConfiguration = async () => {
@@ -304,6 +341,14 @@ export const ServiceOrchestrator: React.FC<ServiceOrchestratorProps> = ({ classN
                         Depends on: {service.dependencies.join(', ')}
                       </div>
                     )}
+                    {(() => {
+                      const dependentServices = getServicesDependingOn(customServices, service.id);
+                      return dependentServices.length > 0 && (
+                        <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                          Required by: {dependentServices.join(', ')}
+                        </div>
+                      );
+                    })()}
                     {service.profiles && selectedProfile && service.profiles[selectedProfile] && (
                       <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                         Using: {service.profiles[selectedProfile]}

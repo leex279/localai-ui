@@ -6,7 +6,7 @@ class DockerClientWrapper {
       // Try to connect to Docker socket
       this.docker = new Docker({ socketPath: '/var/run/docker.sock' });
       this.connected = true;
-      console.log('[INFO] Docker client initialized');
+      console.log('[INFO] Docker client initialized with socket path');
     } catch (error) {
       console.error('[ERROR] Failed to initialize Docker client:', error.message);
       this.connected = false;
