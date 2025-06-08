@@ -2,6 +2,7 @@ import express from 'express/index.js';
 import { writeFile, mkdir, readFile, access, constants } from 'fs/promises';
 import { dirname, join } from 'path';
 import cors from 'cors/lib/index.js';
+import dockerClient from './dockerClient.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -436,6 +437,144 @@ app.post('/api/stop-services', async (req, res) => {
   }
 });
 
+// ======================
+// Docker Monitoring APIs
+// ======================
+
+// Get all containers
+app.get('/api/docker/containers', async (req, res) => {
+  try {
+    console.log('[DEBUG] Docker containers list request received');
+    
+    if (!dockerClient.isConnected()) {
+      const connected = await dockerClient.testConnection();
+      if (!connected) {
+        return res.status(503).json({
+          error: 'Docker daemon not available',
+          message: 'Could not connect to Docker socket. Ensure Docker is running and socket is mounted.'
+        });
+      }
+    }
+    
+    const containers = await dockerClient.listContainers(true);
+    console.log(`[DEBUG] Found ${containers.length} containers`);
+    
+    res.json(containers);
+  } catch (error) {
+    console.error('[ERROR] Failed to list containers:', error);
+    res.status(500).json({
+      error: 'Failed to list containers',
+      details: error.message
+    });
+  }
+});
+
+// Get container stats
+app.get('/api/docker/containers/:id/stats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`[DEBUG] Container stats request for: ${id}`);
+    
+    if (!dockerClient.isConnected()) {
+      return res.status(503).json({
+        error: 'Docker daemon not available'
+      });
+    }
+    
+    const stats = await dockerClient.getContainerStats(id);
+    res.json(stats);
+  } catch (error) {
+    console.error(`[ERROR] Failed to get stats for container ${req.params.id}:`, error);
+    res.status(500).json({
+      error: 'Failed to get container stats',
+      details: error.message
+    });
+  }
+});
+
+// Get container logs
+app.get('/api/docker/containers/:id/logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tail = 100, since = 0 } = req.query;
+    
+    console.log(`[DEBUG] Container logs request for: ${id}, tail: ${tail}, since: ${since}`);
+    
+    if (!dockerClient.isConnected()) {
+      return res.status(503).json({
+        error: 'Docker daemon not available'
+      });
+    }
+    
+    const logs = await dockerClient.getContainerLogs(id, {
+      tail: parseInt(tail),
+      since: parseInt(since)
+    });
+    
+    res.json(logs);
+  } catch (error) {
+    console.error(`[ERROR] Failed to get logs for container ${req.params.id}:`, error);
+    res.status(500).json({
+      error: 'Failed to get container logs',
+      details: error.message
+    });
+  }
+});
+
+// Perform container action (start/stop/restart)
+app.post('/api/docker/containers/:id/action', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+    
+    console.log(`[DEBUG] Container action request: ${action} for ${id}`);
+    
+    if (!dockerClient.isConnected()) {
+      return res.status(503).json({
+        error: 'Docker daemon not available'
+      });
+    }
+    
+    if (!['start', 'stop', 'restart', 'pause', 'unpause'].includes(action)) {
+      return res.status(400).json({
+        error: 'Invalid action',
+        validActions: ['start', 'stop', 'restart', 'pause', 'unpause']
+      });
+    }
+    
+    const result = await dockerClient.performContainerAction(id, action);
+    console.log(`[DEBUG] Container action ${action} completed for ${id}`);
+    
+    res.json(result);
+  } catch (error) {
+    console.error(`[ERROR] Failed to perform action ${req.body.action} on container ${req.params.id}:`, error);
+    res.status(500).json({
+      error: `Failed to ${req.body.action} container`,
+      details: error.message
+    });
+  }
+});
+
+// Docker connection status
+app.get('/api/docker/status', async (req, res) => {
+  try {
+    console.log('[DEBUG] Docker status check requested');
+    
+    const connected = await dockerClient.testConnection();
+    
+    res.json({
+      connected,
+      message: connected ? 'Docker daemon accessible' : 'Docker daemon not available'
+    });
+  } catch (error) {
+    console.error('[ERROR] Docker status check failed:', error);
+    res.status(500).json({
+      connected: false,
+      error: 'Failed to check Docker status',
+      details: error.message
+    });
+  }
+});
 
 // Add a route to check server status and volume mounts
 app.get('/api/status', async (req, res) => {
@@ -462,7 +601,24 @@ app.get('/api/status', async (req, res) => {
       };
       console.error(`[ERROR] Output directory not accessible:`, error);
     }
-    
+
+    // Check Docker connection
+    let dockerStatus;
+    try {
+      const dockerConnected = await dockerClient.testConnection();
+      dockerStatus = {
+        connected: dockerConnected,
+        available: dockerClient.isConnected()
+      };
+      console.log(`[DEBUG] Docker status: connected=${dockerConnected}, available=${dockerClient.isConnected()}`);
+    } catch (error) {
+      dockerStatus = {
+        connected: false,
+        available: false,
+        error: error.message
+      };
+      console.error(`[ERROR] Docker status check failed:`, error);
+    }
     
     res.json({
       timestamp: new Date().toISOString(),
@@ -473,7 +629,8 @@ app.get('/api/status', async (req, res) => {
       },
       volumes: {
         output: outputStatus
-      }
+      },
+      docker: dockerStatus
     });
   } catch (error) {
     console.error('[ERROR] Status check failed:', error);

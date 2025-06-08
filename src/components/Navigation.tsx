@@ -1,9 +1,9 @@
 import React from 'react';
-import { Settings2Icon, FileTextIcon, PlayIcon } from 'lucide-react';
+import { Settings2Icon, FileTextIcon, PlayIcon, ActivityIcon } from 'lucide-react';
 
 interface NavigationProps {
-  activeTab: 'env' | 'orchestrator';
-  onTabChange: (tab: 'env' | 'orchestrator') => void;
+  activeTab: 'env' | 'orchestrator' | 'monitoring';
+  onTabChange: (tab: 'env' | 'orchestrator' | 'monitoring') => void;
 }
 
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
@@ -21,6 +21,17 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
           >
             <PlayIcon className="w-4 h-4 mr-2" />
             Service Orchestrator
+          </button>
+          <button
+            onClick={() => onTabChange('monitoring')}
+            className={`flex items-center px-4 py-3 text-sm font-medium ${
+              activeTab === 'monitoring'
+                ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <ActivityIcon className="w-4 h-4 mr-2" />
+            Monitoring
           </button>
           <button
             onClick={() => onTabChange('env')}

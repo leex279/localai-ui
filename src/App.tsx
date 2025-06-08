@@ -6,11 +6,12 @@ import EnvConfigurator from './components/EnvConfigurator';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 import { ServiceOrchestrator } from './components/ServiceOrchestrator';
+import MonitoringDashboard from './components/Monitoring/MonitoringDashboard';
 
 function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'env' | 'orchestrator'>('orchestrator');
+  const [activeTab, setActiveTab] = useState<'env' | 'orchestrator' | 'monitoring'>('orchestrator');
   const [envVariables, setEnvVariables] = useState<EnvVariable[]>([]);
   const [config, setConfig] = useState<any>(null);
   const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
@@ -144,12 +145,16 @@ function App() {
           <p className="text-lg text-gray-700 dark:text-gray-300">
             {activeTab === 'orchestrator'
               ? 'Manage your local AI services with intelligent configuration and real-time orchestration. Configure which services to run and control them directly from this interface.'
+              : activeTab === 'monitoring'
+              ? 'Monitor and manage your Docker containers in real-time. View container status, logs, resource usage, and perform basic lifecycle operations.'
               : 'Configure your environment variables. These settings will be saved to your .env file.'}
           </p>
         </div>
 
         {activeTab === 'orchestrator' ? (
           <ServiceOrchestrator className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" />
+        ) : activeTab === 'monitoring' ? (
+          <MonitoringDashboard className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm" />
         ) : (
           <EnvConfigurator
             variables={envVariables}
