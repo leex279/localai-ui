@@ -2,5 +2,5 @@
   "referenceComposeFile": "/api/files/input/docker-compose.yml",
   "referenceEnvFile": "/api/files/input/env", 
   "outputPath": "/app/output",
-  "apiBaseUrl": "http://localhost:3001"
+  "apiBaseUrl": "http://localhost:5001"
 }

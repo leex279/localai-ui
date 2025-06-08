@@ -37,7 +37,7 @@ export const services: ServiceDefinition[] = [
     name: 'n8n',
     description: 'Workflow automation tool for connecting various services and APIs',
     category: 'utility',
-    dependencies: ['postgres'],
+    dependencies: ['supabase'],
     required: false,
     image: 'n8nio/n8n:latest',
     ports: ['5678:5678'],
@@ -361,7 +361,7 @@ export const defaultCustomServices: CustomServicesJson = {
         required: false,
         description: "Workflow automation platform",
         category: "ai",
-        dependencies: ["n8n-import"]
+        dependencies: ["n8n-import", "supabase"]
       },
       "n8n-import": {
         enabled: true,

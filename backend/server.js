@@ -1,10 +1,10 @@
-import express from 'express';
+import express from 'express/index.js';
 import { writeFile, mkdir, readFile, access, constants } from 'fs/promises';
 import { dirname, join } from 'path';
-import cors from 'cors';
+import cors from 'cors/lib/index.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5001;
 
 // Enable CORS for all routes
 app.use(cors());
@@ -33,91 +33,59 @@ async function checkFileAccess(filePath) {
   }
 }
 
-// List directory contents
-app.get('/api/list-dir/:path(*)', async (req, res) => {
-  try {
-    const requestedPath = req.params.path;
-    const fullPath = join('/app', requestedPath);
-    console.log(`[DEBUG] Listing directory: ${fullPath}`);
-    
-    const { readdir } = await import('fs/promises');
-    const files = await readdir(fullPath, { withFileTypes: true });
-    
-    const fileList = files.map(file => ({
-      name: file.name,
-      isDirectory: file.isDirectory(),
-      path: join(requestedPath, file.name)
-    }));
-    
-    console.log(`[DEBUG] Found ${fileList.length} files/directories in ${fullPath}`);
-    res.json(fileList);
-  } catch (error) {
-    console.error(`[ERROR] Error listing directory:`, error);
-    res.status(500).json({ 
-      error: 'Failed to list directory',
-      details: error.message,
-      path: req.params.path
-    });
-  }
-});
 
-// Serve files from input directory
-app.get('/api/files/input/*', async (req, res) => {
+
+
+// Load env file (prioritize shared/.env, then parent .env, then input template)
+app.get('/api/load-env', async (req, res) => {
   try {
-    const requestPath = req.path;
-    const filePath = requestPath.replace('/api/files/input/', '/app/input/');
-    console.log(`[DEBUG] Request path: ${requestPath}`);
-    console.log(`[DEBUG] Reading file: ${filePath}`);
+    console.log('[DEBUG] Load env file request received');
     
-    // Check if file exists before attempting to read
-    const fileExists = await checkFileAccess(filePath);
-    if (!fileExists) {
-      console.error(`[ERROR] File does not exist or is not readable: ${filePath}`);
-      return res.status(404).json({
-        error: 'File not found or not readable',
-        path: filePath
+    const basePath = process.env.NODE_ENV === 'production' ? '/app' : process.cwd();
+    
+    // Try multiple locations in priority order
+    const envPaths = [
+      `${basePath}/shared/.env`,           // Shared volume (saved configs)
+      `${basePath}/../.env`,               // Parent project directory
+      `${basePath}/input/env`              // Template file
+    ];
+    
+    let content = '';
+    let sourcePath = '';
+    
+    for (const envPath of envPaths) {
+      try {
+        const fileExists = await checkFileAccess(envPath);
+        if (fileExists) {
+          content = await readFile(envPath, 'utf8');
+          sourcePath = envPath;
+          console.log(`[DEBUG] Loaded env file from: ${sourcePath}`);
+          break;
+        }
+      } catch (error) {
+        console.log(`[DEBUG] Failed to load from ${envPath}: ${error.message}`);
+        continue;
+      }
+    }
+    
+    if (!content) {
+      console.error('[ERROR] No env file found in any location');
+      return res.status(404).json({ 
+        error: 'No environment file found',
+        searchedPaths: envPaths
       });
     }
     
-    const content = await readFile(filePath, 'utf8');
-    console.log(`[DEBUG] File content length: ${content.length} bytes`);
-    console.log(`[DEBUG] First 100 chars: ${content.substring(0, 100)}...`);
-    
-    res.type('text/plain').send(content);
-  } catch (error) {
-    console.error(`[ERROR] Error reading file:`, error);
-    res.status(500).json({ 
-      error: 'Failed to read file',
-      details: error.message,
-      code: error.code,
-      path: req.path
+    console.log(`[DEBUG] Env file content length: ${content.length} bytes`);
+    res.json({ 
+      content, 
+      sourcePath: sourcePath.replace(basePath, ''),
+      success: true 
     });
-  }
-});
-
-// Save compose file
-app.post('/api/save-compose', async (req, res) => {
-  try {
-    const { content } = req.body;
-    console.log(`[DEBUG] Save compose request received. Content length: ${content ? content.length : 0} bytes`);
-    
-    if (!content) {
-      console.error(`[ERROR] No content provided for save compose`);
-      return res.status(400).json({ error: 'No content provided' });
-    }
-    
-    const outputPath = '/app/output/docker-compose.yml';
-    console.log(`[DEBUG] Saving compose file to: ${outputPath}`);
-    
-    await ensureDirectoryExists(outputPath);
-    await writeFile(outputPath, content, 'utf8');
-    
-    console.log(`[DEBUG] File saved successfully: ${outputPath}`);
-    res.json({ success: true, path: outputPath });
   } catch (error) {
-    console.error('[ERROR] Error saving compose file:', error);
+    console.error('[ERROR] Error loading env file:', error);
     res.status(500).json({ 
-      error: 'Failed to save compose file', 
+      error: 'Failed to load env file', 
       details: error.message,
       code: error.code
     });
@@ -135,14 +103,32 @@ app.post('/api/save-env', async (req, res) => {
       return res.status(400).json({ error: 'No content provided' });
     }
     
-    const outputPath = path || '/app/output/.env';
-    console.log(`[DEBUG] Saving env file to: ${outputPath}`);
+    const basePath = process.env.NODE_ENV === 'production' ? '/app' : process.cwd();
     
-    await ensureDirectoryExists(outputPath);
-    await writeFile(outputPath, content, 'utf8');
+    // Save to shared volume (.env) - this is accessible and where start_services.py expects it
+    // Also save backup to output directory for reference
+    const sharedEnvPath = `${basePath}/shared/.env`;
+    const outputBackupPath = `${basePath}/output/.env`;
     
-    console.log(`[DEBUG] Env file saved successfully: ${outputPath}`);
-    res.json({ success: true, path: outputPath });
+    const envPath = path || sharedEnvPath;
+    console.log(`[DEBUG] Saving env file to shared volume: ${envPath}`);
+    console.log(`[DEBUG] Also saving backup to: ${outputBackupPath}`);
+    
+    // Save to shared volume (main file that start_services.py can access)
+    await writeFile(envPath, content, 'utf8');
+    
+    // Also save backup to output directory
+    await ensureDirectoryExists(outputBackupPath);
+    await writeFile(outputBackupPath, content, 'utf8');
+    
+    console.log(`[DEBUG] Env file saved successfully to shared volume: ${envPath}`);
+    console.log(`[DEBUG] Backup saved to: ${outputBackupPath}`);
+    res.json({ 
+      success: true, 
+      path: envPath,
+      backupPath: outputBackupPath,
+      message: 'Environment file saved to project root and backup created'
+    });
   } catch (error) {
     console.error('[ERROR] Error saving env file:', error);
     res.status(500).json({ 
@@ -158,7 +144,8 @@ app.get('/api/custom-services', async (req, res) => {
   try {
     console.log(`[DEBUG] Get custom services config request received`);
     
-    const sharedPath = '/app/shared/custom_services.json';
+    const basePath = process.env.NODE_ENV === 'production' ? '/app' : process.cwd();
+    const sharedPath = `${basePath}/shared/custom_services.json`;
     
     // Check if custom services file exists
     const fileExists = await checkFileAccess(sharedPath);
@@ -168,7 +155,151 @@ app.get('/api/custom-services', async (req, res) => {
       const defaultConfig = {
         version: "1.0",
         description: "Configuration file for customizing which services to start in the local AI stack",
-        services: {},
+        services: {
+          core: {
+            "localai-ui": {
+              enabled: false,
+              required: false,
+              description: "Web-based service configurator",
+              category: "infrastructure",
+              dependencies: []
+            },
+            caddy: {
+              enabled: false,
+              required: false,
+              description: "Reverse proxy with automatic HTTPS",
+              category: "infrastructure",
+              dependencies: []
+            }
+          },
+          ai_platforms: {
+            n8n: {
+              enabled: false,
+              required: false,
+              description: "Workflow automation platform",
+              category: "ai",
+              dependencies: ["n8n-import"]
+            },
+            "n8n-import": {
+              enabled: false,
+              required: false,
+              description: "N8N workflow and credential importer",
+              category: "ai",
+              dependencies: []
+            },
+            "open-webui": {
+              enabled: false,
+              required: false,
+              description: "ChatGPT-like interface for local models",
+              category: "ai",
+              dependencies: []
+            },
+            flowise: {
+              enabled: false,
+              required: false,
+              description: "No-code AI agent builder",
+              category: "ai",
+              dependencies: []
+            }
+          },
+          llm_services: {
+            ollama: {
+              enabled: false,
+              required: false,
+              description: "Local LLM hosting service",
+              category: "ai",
+              dependencies: [],
+              profiles: {
+                cpu: "ollama-cpu",
+                "gpu-nvidia": "ollama-gpu",
+                "gpu-amd": "ollama-gpu-amd"
+              },
+              pull_services: {
+                cpu: "ollama-pull-llama-cpu",
+                "gpu-nvidia": "ollama-pull-llama-gpu",
+                "gpu-amd": "ollama-pull-llama-gpu-amd"
+              }
+            }
+          },
+          databases: {
+            supabase: {
+              enabled: false,
+              required: false,
+              description: "Complete backend with Postgres, auth, real-time",
+              category: "database",
+              dependencies: [],
+              external_compose: true,
+              compose_path: "./supabase/docker/docker-compose.yml"
+            },
+            qdrant: {
+              enabled: false,
+              required: false,
+              description: "Vector database for RAG operations",
+              category: "database",
+              dependencies: []
+            },
+            neo4j: {
+              enabled: false,
+              required: false,
+              description: "Graph database for knowledge graphs",
+              category: "database",
+              dependencies: []
+            },
+            postgres: {
+              enabled: false,
+              required: false,
+              description: "PostgreSQL database for Langfuse",
+              category: "database",
+              dependencies: []
+            },
+            clickhouse: {
+              enabled: false,
+              required: false,
+              description: "Analytics database for Langfuse",
+              category: "database",
+              dependencies: []
+            },
+            redis: {
+              enabled: false,
+              required: false,
+              description: "Caching and session storage",
+              category: "database",
+              dependencies: []
+            }
+          },
+          monitoring: {
+            "langfuse-web": {
+              enabled: false,
+              required: false,
+              description: "LLM observability web interface",
+              category: "monitoring",
+              dependencies: ["langfuse-worker", "postgres", "clickhouse", "redis", "minio"]
+            },
+            "langfuse-worker": {
+              enabled: false,
+              required: false,
+              description: "Langfuse background worker",
+              category: "monitoring",
+              dependencies: ["postgres", "clickhouse", "redis", "minio"]
+            }
+          },
+          utilities: {
+            searxng: {
+              enabled: false,
+              required: false,
+              description: "Privacy-focused metasearch engine",
+              category: "utility",
+              dependencies: []
+            },
+            minio: {
+              enabled: false,
+              required: false,
+              description: "S3-compatible object storage",
+              category: "utility",
+              dependencies: []
+            }
+          }
+        },
         profiles: {
           cpu: { description: "CPU-only mode for Ollama", default: true },
           "gpu-nvidia": { description: "NVIDIA GPU support for Ollama", default: false },
@@ -210,8 +341,9 @@ app.post('/api/custom-services', async (req, res) => {
     }
     
     // Save to both output directory and shared directory (where start_services.py expects it)
-    const outputPath = '/app/output/custom_services.json';
-    const sharedPath = '/app/shared/custom_services.json';
+    const basePath = process.env.NODE_ENV === 'production' ? '/app' : process.cwd();
+    const outputPath = `${basePath}/output/custom_services.json`;
+    const sharedPath = `${basePath}/shared/custom_services.json`;
     
     console.log(`[DEBUG] Saving services config to: ${outputPath} and ${sharedPath}`);
     
@@ -304,44 +436,16 @@ app.post('/api/stop-services', async (req, res) => {
   }
 });
 
-// Legacy endpoint for backward compatibility
-app.post('/api/save-services-config', async (req, res) => {
-  // Redirect to the new endpoint
-  const { config } = req.body;
-  req.body = { config };
-  req.url = '/api/custom-services';
-  req.method = 'POST';
-  return app._router.handle(req, res);
-});
 
 // Add a route to check server status and volume mounts
 app.get('/api/status', async (req, res) => {
   try {
     console.log(`[DEBUG] Status check requested`);
     
-    // Check input directory
-    const inputPath = '/app/input';
-    let inputStatus;
-    try {
-      await access(inputPath, constants.F_OK | constants.R_OK);
-      const { readdir } = await import('fs/promises');
-      const inputFiles = await readdir(inputPath);
-      inputStatus = {
-        accessible: true,
-        files: inputFiles
-      };
-      console.log(`[DEBUG] Input directory accessible. Files: ${inputFiles.join(', ')}`);
-    } catch (error) {
-      inputStatus = {
-        accessible: false,
-        error: error.message,
-        code: error.code
-      };
-      console.error(`[ERROR] Input directory not accessible:`, error);
-    }
+    const basePath = process.env.NODE_ENV === 'production' ? '/app' : process.cwd();
     
     // Check output directory
-    const outputPath = '/app/output';
+    const outputPath = `${basePath}/output`;
     let outputStatus;
     try {
       await access(outputPath, constants.F_OK | constants.R_OK | constants.W_OK);
@@ -359,26 +463,6 @@ app.get('/api/status', async (req, res) => {
       console.error(`[ERROR] Output directory not accessible:`, error);
     }
     
-    // Check specific files
-    const composeFilePath = '/app/input/docker-compose.yml';
-    let composeFileStatus;
-    try {
-      await access(composeFilePath, constants.F_OK | constants.R_OK);
-      const stats = await import('fs/promises').then(fs => fs.stat(composeFilePath));
-      composeFileStatus = {
-        exists: true,
-        size: stats.size,
-        isFile: stats.isFile()
-      };
-      console.log(`[DEBUG] docker-compose.yml exists. Size: ${stats.size} bytes`);
-    } catch (error) {
-      composeFileStatus = {
-        exists: false,
-        error: error.message,
-        code: error.code
-      };
-      console.error(`[ERROR] docker-compose.yml not accessible:`, error);
-    }
     
     res.json({
       timestamp: new Date().toISOString(),
@@ -388,11 +472,7 @@ app.get('/api/status', async (req, res) => {
         API_URL: process.env.VITE_API_URL
       },
       volumes: {
-        input: inputStatus,
         output: outputStatus
-      },
-      files: {
-        dockerCompose: composeFileStatus
       }
     });
   } catch (error) {

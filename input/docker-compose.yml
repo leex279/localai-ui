@@ -91,7 +91,7 @@ services:
       - 3000/tcp
       - 3001/tcp
     environment:
-      - VITE_API_URL=http://localhost:3001
+      - VITE_API_URL=http://localhost:5001
       - PORT=3001
     volumes:
       - ./localai-ui/input:/app/input:ro

@@ -22,7 +22,7 @@ export default function Header() {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-200 to-indigo-200 bg-clip-text text-transparent">
-                Docker Compose Configurator
+                Configurator
               </h1>
               <p className="text-blue-200/80 text-sm mt-1">
                 Build your custom configuration with automated dependency management

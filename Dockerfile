@@ -22,12 +22,17 @@ RUN mkdir -p /app/output && \
     chown -R node:node /app && \
     chmod -R 775 /app/output
 
+# Create shared directory for communication with parent project
+RUN mkdir -p /app/shared && \
+    chown -R node:node /app/shared && \
+    chmod -R 775 /app/shared
+
 # Expose ports
-EXPOSE 3000
-EXPOSE 3001
+EXPOSE 5000
+EXPOSE 5001
 
 # Switch to node user for better security
 USER node
 
 # Start both frontend and backend
-CMD node backend/server.js & npm run preview
+CMD PORT=5001 node backend/server.js & npx vite preview --port 5000 --host 0.0.0.0

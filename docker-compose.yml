@@ -1,15 +1,17 @@
 version: '3'
 
 services:
-  app:
+  localai-ui:
     build: .
     ports:
-      - "3000:3000"  # Frontend
-      - "3001:3001"  # Backend API
+      - "5000:5000"  # Frontend
+      - "5001:5001"  # Backend API
     volumes:
       - ./input:/app/input:ro
       - ./output:/app/output
+      - ../shared:/app/shared  # For communication with parent project
     environment:
-      - VITE_API_URL=http://localhost:3001
-      - PORT=3001
+      - VITE_API_URL=http://localhost:5001
+      - PORT=5001
+      - NODE_ENV=production
     restart: unless-stopped

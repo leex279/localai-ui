@@ -3,7 +3,7 @@ import { CustomServicesJson, ServiceStatus, ServiceOrchestrationAPI } from '../t
 class ServiceOrchestrationClient implements ServiceOrchestrationAPI {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://localhost:3001/api') {
+  constructor(baseUrl: string = 'http://localhost:5001/api') {
     this.baseUrl = baseUrl;
   }
 

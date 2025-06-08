@@ -1,6 +1,6 @@
 # LocalAI UI Configurator
 
-A user-friendly web interface for configuring and managing your local AI services. This tool provides an intuitive way to select services, manage dependencies, and generate Docker Compose configurations for your local AI stack.
+A user-friendly web interface for configuring and managing your local AI services. This tool provides an intuitive way to select services, manage dependencies, and orchestrate your local AI stack through an integrated configuration system.
 
 ## Features
 
@@ -12,12 +12,6 @@ A user-friendly web interface for configuring and managing your local AI service
 - **Real-time Status**: Monitor service health and status (extensible)
 - **Persistent Configuration**: Saves to `custom_services.json` for integration with startup scripts
 
-### 🐳 **Docker Compose Generator**
-- **Intelligent Service Selection**: Choose from a comprehensive list of AI and infrastructure services
-- **Automatic Dependency Resolution**: The system automatically includes required dependencies
-- **Visual Dependency Graph**: See how services depend on each other
-- **Production-Ready Output**: Generate optimized Docker Compose files
-- **Include Management**: Handle external compose file includes
 
 ### ⚙️ **Environment Configuration**
 - **Environment Variable Management**: Configure your `.env` file through a user-friendly interface
@@ -74,13 +68,7 @@ Then open http://localhost:3000 in your browser.
 - **Save Configuration**: Click "Save Configuration" to persist your choices
 - **Start Services**: Use "Start Selected Services" to launch your stack (requires integration)
 
-### 2. Docker Compose Tab
-- **Browse Services**: Explore available services organized by category
-- **Toggle Services**: Click checkboxes to include/exclude services
-- **View Dependencies**: Use "Show Dependency Graph" to visualize relationships
-- **Generate & Download**: Download your customized `docker-compose.yml`
-
-### 3. Environment Variables Tab
+### 2. Environment Variables Tab
 - **Configure Variables**: Set required environment variables
 - **Load Templates**: Import from existing `.env` files
 - **Save Configuration**: Export your environment configuration
@@ -116,11 +104,9 @@ Then open http://localhost:3000 in your browser.
 ## Configuration Files
 
 ### Input Files
-- `input/docker-compose.yml`: Reference Docker Compose configuration
 - `input/env`: Template environment variables
 
 ### Output Files
-- `output/docker-compose.yml`: Generated Docker Compose file
 - `output/.env`: Generated environment configuration
 - `../shared/custom_services.json`: Service orchestration configuration
 
